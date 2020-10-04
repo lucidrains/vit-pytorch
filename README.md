@@ -1,6 +1,8 @@
+<img src="./vit.png" width="500px"></img>
+
 ## Vision Transformer - Pytorch
 
-Implementation of Vision Transformer, a simple way to achieve SOTA in vision classification with only a single transformer encoder, in Pytorch. There's really not much to code here, but may as well lay out all the code so we expedite the attention revolution and get everyone on the same page.
+Implementation of <a href="https://openreview.net/pdf?id=YicbFdNTTy">Vision Transformer</a>, a simple way to achieve SOTA in vision classification with only a single transformer encoder, in Pytorch. There's really not much to code here, but may as well lay it out all for everyone so we expedite the attention revolution.
 
 ## Install
 

@@ -77,6 +77,8 @@ class ViT(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.transformer = Transformer(dim, depth, heads, mlp_dim)
 
+        self.to_cls_token = nn.Identity()
+
         self.mlp_head = nn.Sequential(
             nn.Linear(dim, mlp_dim),
             nn.GELU(),
@@ -88,8 +90,11 @@ class ViT(nn.Module):
 
         x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
         x = self.patch_to_embedding(x)
-        x = torch.cat((self.cls_token, x), dim=1)
+
+        cls_tokens = self.cls_token.expand(img.shape[0], -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
         x += self.pos_embedding
         x = self.transformer(x)
 
-        return self.mlp_head(x[:, 0])
+        x = self.to_cls_token(x[:, 0])
+        return self.mlp_head(x)

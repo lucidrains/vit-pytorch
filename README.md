@@ -30,6 +30,56 @@ img = torch.randn(1, 3, 256, 256)
 preds = v(img) # (1, 1000)
 ```
 
+## Suggestion
+
+You can train this with a near SOTA self-supervised learning technique, <a href="https://github.com/lucidrains/byol-pytorch">BYOL</a>, with the following code.
+
+(1)
+```bash
+$ pip install byol-pytorch
+```
+
+(2)
+```python
+import torch
+from vit_pytorch import ViT
+from byol_pytorch import BYOL
+
+model = ViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048
+)
+
+learner = BYOL(
+    model,
+    image_size = 256,
+    hidden_layer = 'to_cls_token'
+)
+
+opt = torch.optim.Adam(learner.parameters(), lr=3e-4)
+
+def sample_unlabelled_images():
+    return torch.randn(20, 3, 256, 256)
+
+for _ in range(100):
+    images = sample_unlabelled_images()
+    loss = learner(images)
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+    learner.update_moving_average() # update moving average of target encoder
+
+# save your improved network
+torch.save(model.state_dict(), './pretrained-net.pt')
+```
+
+A pytorch-lightning script is ready for you to use at the repository link above.
+
 ## Citations
 
 ```bibtex

@@ -1,6 +1,5 @@
 import torch
 from einops import rearrange
-import torch.nn.functional as F
 from torch import nn
 
 class Residual(nn.Module):

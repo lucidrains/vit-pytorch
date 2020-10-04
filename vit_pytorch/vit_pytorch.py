@@ -86,7 +86,7 @@ class ViT(nn.Module):
     def forward(self, img):
         p = self.patch_size
 
-        x = rearrange(img, 'b c (p1 h) (p2 w) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
+        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
         x = self.patch_to_embedding(x)
         x = torch.cat((self.cls_token, x), dim=1)
         x += self.pos_embedding

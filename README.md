@@ -27,7 +27,9 @@ v = ViT(
 )
 
 img = torch.randn(1, 3, 256, 256)
-preds = v(img) # (1, 1000)
+mask = torch.ones(1, 8, 8).bool() # optional mask, designating which patch to attend to
+
+preds = v(img, mask = mask) # (1, 1000)
 ```
 
 ## Suggestion

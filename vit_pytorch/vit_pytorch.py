@@ -46,7 +46,6 @@ class Attention(nn.Module):
 
         if mask is not None:
             mask = F.pad(mask.flatten(1), (1, 0), value = True)
-            print(mask.shape[-1], dots.shape[-1])
             assert mask.shape[-1] == dots.shape[-1], 'mask has incorrect dimensions'
             mask = mask[:, None, :] * mask[:, :, None]
             dots.masked_fill_(~mask, float('-inf'))

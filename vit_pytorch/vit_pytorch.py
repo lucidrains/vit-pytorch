@@ -1,12 +1,14 @@
 import torch
 import torch.nn.functional as F
-from einops import rearrange
+
 from torch import nn
+from einops import rearrange
 
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
+
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) + x
 
@@ -15,6 +17,7 @@ class PreNorm(nn.Module):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.fn = fn
+
     def forward(self, x, **kwargs):
         return self.fn(self.norm(x), **kwargs)
 
@@ -26,21 +29,23 @@ class FeedForward(nn.Module):
             nn.GELU(),
             nn.Linear(hidden_dim, dim)
         )
+
     def forward(self, x):
         return self.net(x)
 
 class Attention(nn.Module):
-    def __init__(self, dim, heads = 8):
+    def __init__(self, dim, heads=8):
         super().__init__()
         self.heads = heads
         self.scale = dim ** -0.5
 
-        self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
+        self.to_qkv = nn.Linear(dim, dim * 3, bias=False)
         self.to_out = nn.Linear(dim, dim)
+
     def forward(self, x, mask = None):
         b, n, _, h = *x.shape, self.heads
         qkv = self.to_qkv(x)
-        q, k, v = rearrange(qkv, 'b n (qkv h d) -> qkv b h n d', qkv = 3, h = h)
+        q, k, v = rearrange(qkv, 'b n (qkv h d) -> qkv b h n d', qkv=3, h=h)
 
         dots = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
 
@@ -67,14 +72,15 @@ class Transformer(nn.Module):
                 Residual(PreNorm(dim, Attention(dim, heads = heads))),
                 Residual(PreNorm(dim, FeedForward(dim, mlp_dim)))
             ]))
-    def forward(self, x, mask = None):
+
+    def forward(self, x, mask=None):
         for attn, ff in self.layers:
-            x = attn(x, mask = mask)
+            x = attn(x, mask=mask)
             x = ff(x)
         return x
 
 class ViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels=3):
         super().__init__()
         assert image_size % patch_size == 0, 'image dimensions must be divisible by the patch size'
         num_patches = (image_size // patch_size) ** 2
@@ -95,7 +101,7 @@ class ViT(nn.Module):
             nn.Linear(mlp_dim, num_classes)
         )
 
-    def forward(self, img, mask = None):
+    def forward(self, img, mask=None):
         p = self.patch_size
 
         x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
@@ -107,4 +113,4 @@ class ViT(nn.Module):
         x = self.transformer(x, mask)
 
         x = self.to_cls_token(x[:, 0])
-        return self.mlp_head(x)
+        return F.log_softmax(self.mlp_head(x), dim=0)

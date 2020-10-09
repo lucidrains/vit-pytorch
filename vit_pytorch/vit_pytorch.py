@@ -113,4 +113,4 @@ class ViT(nn.Module):
         x = self.transformer(x, mask)
 
         x = self.to_cls_token(x[:, 0])
-        return F.log_softmax(self.mlp_head(x), dim=0)
+        return self.mlp_head(x)

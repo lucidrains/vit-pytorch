@@ -19,6 +19,7 @@ class ViT(nn.Module):
         self.to_cls_token = nn.Identity()
 
         self.mlp_head = nn.Sequential(
+            nn.LayerNorm(dim),
             nn.Linear(dim, dim * 4),
             nn.GELU(),
             nn.Linear(dim * 4, num_classes)

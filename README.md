@@ -24,8 +24,8 @@ v = ViT(
     depth = 6,
     heads = 8,
     mlp_dim = 2048,
-    attn_dropout = 0.1,
-    ff_dropout = 0.1
+    dropout = 0.1,
+    emb_dropout = 0.1
 )
 
 img = torch.randn(1, 3, 256, 256)

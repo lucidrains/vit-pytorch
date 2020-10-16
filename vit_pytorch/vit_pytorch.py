@@ -105,8 +105,7 @@ class ViT(nn.Module):
             nn.Linear(dim, mlp_dim),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(mlp_dim, num_classes),
-            nn.Dropout(dropout)
+            nn.Linear(mlp_dim, num_classes)
         )
 
     def forward(self, img, mask = None):

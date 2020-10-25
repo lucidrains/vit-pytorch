@@ -113,10 +113,11 @@ class ViT(nn.Module):
 
         x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
         x = self.patch_to_embedding(x)
+        b, n, _ = x.shape
 
-        cls_tokens = self.cls_token.expand(img.shape[0], -1, -1)
+        cls_tokens = self.cls_token.expand(b, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding
+        x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
 
         x = self.transformer(x, mask)

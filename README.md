@@ -1,4 +1,4 @@
-<img src="./vit.png" width="500px"></img>
+<img src="./vit.gif" width="500px"></img>
 
 ## Vision Transformer - Pytorch
 

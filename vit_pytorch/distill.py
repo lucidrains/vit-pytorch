@@ -72,7 +72,9 @@ class DistillWrapper(nn.Module):
         b, *_, alpha = *img.shape, self.alpha
         T = temperature if exists(temperature) else self.temperature
 
-        teacher_logits = self.teacher(img)
+        with torch.no_grad():
+            teacher_logits = self.teacher(img)
+
         student_logits, distill_tokens = self.student(img, distill_token = self.distillation_token, **kwargs)
         distill_logits = self.distill_mlp(distill_tokens)
 

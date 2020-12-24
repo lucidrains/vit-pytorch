@@ -62,6 +62,8 @@ Embedding dropout rate.
 
 ## Distillation
 
+<img src="./distill.png" width="300px"></img>
+
 A recent <a href="https://arxiv.org/abs/2012.12877">paper</a> has shown that use of a distillation token for distilling knowledge from convolutional nets to vision transformer can yield small and efficient vision transformers. This repository offers the means to do distillation easily.
 
 ex. distilling from Resnet50 (or any teacher) to a vision transformer

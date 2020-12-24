@@ -6,6 +6,8 @@ Implementation of <a href="https://openreview.net/pdf?id=YicbFdNTTy">Vision Tran
 
 For a Pytorch implementation with pretrained models, please see Ross Wightman's repository <a href="https://github.com/rwightman/pytorch-image-models">here</a>
 
+Update: A <a href="https://arxiv.org/abs/2012.12877">new paper</a> proposes using distillation tokens for distilling conv nets into efficient image transformers. I'll offer a way to toggle the use of distillation tokens in the coming days.
+
 ## Install
 
 ```bash

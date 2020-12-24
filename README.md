@@ -207,12 +207,12 @@ Other sparse attention frameworks I would highly recommend is <a href="https://g
 
 ```bibtex
 @misc{touvron2020training,
-    title={Training data-efficient image transformers & distillation through attention}, 
-    author={Hugo Touvron and Matthieu Cord and Matthijs Douze and Francisco Massa and Alexandre Sablayrolles and Hervé Jégou},
-    year={2020},
-    eprint={2012.12877},
-    archivePrefix={arXiv},
-    primaryClass={cs.CV}
+    title   = {Training data-efficient image transformers & distillation through attention}, 
+    author  = {Hugo Touvron and Matthieu Cord and Matthijs Douze and Francisco Massa and Alexandre Sablayrolles and Hervé Jégou},
+    year    = {2020},
+    eprint  = {2012.12877},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
 }
 ```
 

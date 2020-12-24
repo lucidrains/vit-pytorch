@@ -3,9 +3,10 @@ from einops import rearrange, repeat
 from torch import nn
 
 class ViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, channels = 3):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
         super().__init__()
         assert image_size % patch_size == 0, 'image dimensions must be divisible by the patch size'
+        assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
         num_patches = (image_size // patch_size) ** 2
         patch_dim = channels * patch_size ** 2
 
@@ -16,7 +17,8 @@ class ViT(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.transformer = transformer
 
-        self.to_cls_token = nn.Identity()
+        self.pool = pool
+        self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),
@@ -35,5 +37,7 @@ class ViT(nn.Module):
         x += self.pos_embedding[:, :(n + 1)]
         x = self.transformer(x)
 
-        x = self.to_cls_token(x[:, 0])
+        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+
+        x = self.to_latent(x)
         return self.mlp_head(x)

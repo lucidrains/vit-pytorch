@@ -83,8 +83,7 @@ v = DistillableViT(
     heads = 8,
     mlp_dim = 2048,
     dropout = 0.1,
-    emb_dropout = 0.1,
-    pool = 'mean'
+    emb_dropout = 0.1
 )
 
 distiller = DistillWrapper(

@@ -58,6 +58,8 @@ Number of image's channels.
 Dropout rate. 
 - `emb_dropout`: float between `[0, 1]`, default `0`.  
 Embedding dropout rate.
+- `pool`: string, either `cls` token pooling or `mean` pooling
+
 ## Research Ideas
 
 ### Self Supervised Training
@@ -88,7 +90,7 @@ model = ViT(
 learner = BYOL(
     model,
     image_size = 256,
-    hidden_layer = 'to_cls_token'
+    hidden_layer = 'to_latent'
 )
 
 opt = torch.optim.Adam(learner.parameters(), lr=3e-4)

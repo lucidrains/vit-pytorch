@@ -68,8 +68,9 @@ class DistillWrapper(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
-    def forward(self, img, labels, temperature = None, **kwargs):
-        b, *_, alpha = *img.shape, self.alpha
+    def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
+        b, *_ = img.shape
+        alpha = alpha if exists(alpha) else self.alpha
         T = temperature if exists(temperature) else self.temperature
 
         with torch.no_grad():

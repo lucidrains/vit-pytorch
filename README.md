@@ -6,8 +6,6 @@ Implementation of <a href="https://openreview.net/pdf?id=YicbFdNTTy">Vision Tran
 
 For a Pytorch implementation with pretrained models, please see Ross Wightman's repository <a href="https://github.com/rwightman/pytorch-image-models">here</a>
 
-Update: A <a href="https://arxiv.org/abs/2012.12877">new paper</a> proposes using distillation tokens for distilling conv nets into efficient image transformers. I'll offer a way to toggle the use of distillation tokens in the coming days.
-
 ## Install
 
 ```bash
@@ -61,6 +59,49 @@ Dropout rate.
 - `emb_dropout`: float between `[0, 1]`, default `0`.  
 Embedding dropout rate.
 - `pool`: string, either `cls` token pooling or `mean` pooling
+
+## Distillation
+
+A recent <a href="https://arxiv.org/abs/2012.12877">paper</a> has shown that use of a distillation token for distilling knowledge from convolutional nets to vision transformer can yield small and efficient vision transformers. This repository offers the means to do distillation easily.
+
+ex. distilling from Resnet50 (or any teacher) to a vision transformer
+
+```python
+import torch
+from torchvision.models import resnet50
+
+from vit_pytorch.distill import DistillableViT, DistillWrapper
+
+teacher = resnet50(pretrained = True)
+
+v = DistillableViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1,
+    pool = 'mean'
+)
+
+distiller = DistillWrapper(
+    student = v,
+    teacher = teacher,
+    temperature = 3,           # temperature of distillation
+    alpha = 0.5                # trade between main loss and distillation loss
+)
+
+img = torch.randn(2, 3, 256, 256)
+labels = torch.randint(0, 1000, (2,))
+
+loss = distiller(img, labels)
+loss.backward()
+```
+
+The `DistillableViT` class is identical to `ViT` except for how the forward pass is handled, so you should be able to load the parameters back to `ViT` after you have completed distillation training.
 
 ## Research Ideas
 

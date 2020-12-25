@@ -16,8 +16,15 @@ def exists(val):
 class DistillableViT(ViT):
     def __init__(self, *args, **kwargs):
         super(DistillableViT, self).__init__(*args, **kwargs)
+        self.args = args
+        self.kwargs = kwargs
         self.dim = kwargs['dim']
         self.num_classes = kwargs['num_classes']
+
+    def to_vit(self):
+        v = ViT(*self.args, **self.kwargs)
+        v.load_state_dict(self.state_dict())
+        return v
 
     def forward(self, img, distill_token, mask = None):
         p = self.patch_size

@@ -104,6 +104,13 @@ loss.backward()
 
 The `DistillableViT` class is identical to `ViT` except for how the forward pass is handled, so you should be able to load the parameters back to `ViT` after you have completed distillation training.
 
+You can also use the handy `.to_vit` method on the `DistillableViT` instance to get back a `ViT` instance.
+
+```python
+v = v.to_vit()
+type(v) # <class 'vit_pytorch.vit_pytorch.ViT'>
+```
+
 ## Research Ideas
 
 ### Self Supervised Training

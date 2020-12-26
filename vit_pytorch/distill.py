@@ -13,7 +13,30 @@ def exists(val):
 
 # classes
 
-class DistillableViT(ViT):
+class DistillMixin:
+    def forward(self, img, distill_token, mask = None):
+        p = self.patch_size
+
+        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
+        x = self.patch_to_embedding(x)
+        b, n, _ = x.shape
+
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
+        x = torch.cat((cls_tokens, x), dim = 1)
+        x += self.pos_embedding[:, :(n + 1)]
+
+        distill_tokens = repeat(distill_token, '() n d -> b n d', b = b)
+        x = torch.cat((x, distill_tokens), dim = 1)
+
+        x = self._attend(x, mask)
+
+        x, distill_tokens = x[:, :-1], x[:, -1]
+        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+
+        x = self.to_latent(x)
+        return self.mlp_head(x), distill_tokens
+
+class DistillableViT(DistillMixin, ViT):
     def __init__(self, *args, **kwargs):
         super(DistillableViT, self).__init__(*args, **kwargs)
         self.args = args
@@ -26,57 +49,26 @@ class DistillableViT(ViT):
         v.load_state_dict(self.state_dict())
         return v
 
-    def forward(self, img, distill_token, mask = None):
-        p = self.patch_size
-
-        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
-        x = self.patch_to_embedding(x)
-        b, n, _ = x.shape
-
-        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
-        x = torch.cat((cls_tokens, x), dim = 1)
-        x += self.pos_embedding[:, :(n + 1)]
-
-        distill_tokens = repeat(distill_token, '() n d -> b n d', b = b)
-        x = torch.cat((x, distill_tokens), dim = 1)
-
+    def _attend(self, x, mask):
         x = self.dropout(x)
-
         x = self.transformer(x, mask)
+        return x
 
-        x, distill_tokens = x[:, :-1], x[:, -1]
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
-
-        x = self.to_latent(x)
-        return self.mlp_head(x), distill_tokens
-
-class DistillableEfficientViT(EfficientViT):
+class DistillableEfficientViT(DistillMixin, EfficientViT):
     def __init__(self, *args, **kwargs):
         super(DistillableEfficientViT, self).__init__(*args, **kwargs)
+        self.args = args
+        self.kwargs = kwargs
         self.dim = kwargs['dim']
         self.num_classes = kwargs['num_classes']
 
-    def forward(self, img, distill_token, mask = None):
-        p = self.patch_size
+    def to_vit(self):
+        v = EfficientViT(*self.args, **self.kwargs)
+        v.load_state_dict(self.state_dict())
+        return v
 
-        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
-        x = self.patch_to_embedding(x)
-        b, n, _ = x.shape
-
-        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
-        x = torch.cat((cls_tokens, x), dim = 1)
-        x += self.pos_embedding[:, :(n + 1)]
-
-        distill_tokens = repeat(distill_token, '() n d -> b n d', b = b)
-        x = torch.cat((x, distill_tokens), dim = 1)
-
-        x = self.transformer(x)
-
-        x, distill_tokens = x[:, :-1], x[:, -1]
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
-
-        x = self.to_latent(x)
-        return self.mlp_head(x), distill_tokens
+    def _attend(self, x, mask):
+        return self.transformer(x)
 
 # knowledge distillation wrapper
 

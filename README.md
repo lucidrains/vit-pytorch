@@ -200,6 +200,39 @@ v(img) # (1, 1000)
 
 Other sparse attention frameworks I would highly recommend is <a href="https://github.com/lucidrains/routing-transformer">Routing Transformer</a> or <a href="https://github.com/lucidrains/sinkhorn-transformer">Sinkhorn Transformer</a>
 
+### Combining with other Transformer improvements
+
+This paper purposely used the most vanilla of attention networks to make a statement. If you would like to use some of the latest improvements for attention nets, please use the `Encoder` from <a href="https://github.com/lucidrains/x-transformers">this repository</a>.
+
+ex.
+
+```bash
+$ pip install x-transformers
+```
+
+```python
+import torch
+from vit_pytorch.efficient import ViT
+from x_transformers import Encoder
+
+v = ViT(
+    dim = 512,
+    image_size = 224,
+    patch_size = 16,
+    num_classes = 1000,
+    transformer = Encoder(
+        dim = 512,                  # set to be the same as the wrapper
+        depth = 12,
+        heads = 8,
+        ff_glu = True,              # ex. feed forward GLU variant https://arxiv.org/abs/2002.05202
+        residual_attn = True        # ex. residual attention https://arxiv.org/abs/2012.11747
+    )
+)
+
+img = torch.randn(1, 3, 224, 224)
+v(img) # (1, 1000)
+```
+
 ## Citations
 
 ```bibtex

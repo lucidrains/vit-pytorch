@@ -267,3 +267,5 @@ v(img) # (1, 1000)
     primaryClass = {cs.CL}
 }
 ```
+
+*I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

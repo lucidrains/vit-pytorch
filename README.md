@@ -233,6 +233,17 @@ img = torch.randn(1, 3, 224, 224)
 v(img) # (1, 1000)
 ```
 
+## Resources
+
+Coming from computer vision and new to transformers? Here are some resources that greatly accelerated my learning.
+
+1. <a href="http://jalammar.github.io/illustrated-transformer/">Illustrated Transformer</a> - Jay Alammar
+
+2. <a href="http://peterbloem.nl/blog/transformers">Transformers from Scratch</a>  - Peter Bloem
+
+3. <a href="https://nlp.seas.harvard.edu/2018/04/03/attention.html">The Annotated Transformer</a> - Harvard NLP
+
+
 ## Citations
 
 ```bibtex

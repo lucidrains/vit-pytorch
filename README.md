@@ -102,6 +102,10 @@ labels = torch.randint(0, 1000, (2,))
 
 loss = distiller(img, labels)
 loss.backward()
+
+# after lots of training above ...
+
+pred = v(img) # (2, 1000)
 ```
 
 The `DistillableViT` class is identical to `ViT` except for how the forward pass is handled, so you should be able to load the parameters back to `ViT` after you have completed distillation training.

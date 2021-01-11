@@ -14,8 +14,8 @@ def exists(val):
 # classes
 
 class DistillMixin:
-    def forward(self, img, distill_token, mask = None):
-        p = self.patch_size
+    def forward(self, img, distill_token = None, mask = None):
+        p, distilling = self.patch_size, exists(distill_token)
 
         x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
         x = self.patch_to_embedding(x)
@@ -25,16 +25,24 @@ class DistillMixin:
         x = torch.cat((cls_tokens, x), dim = 1)
         x += self.pos_embedding[:, :(n + 1)]
 
-        distill_tokens = repeat(distill_token, '() n d -> b n d', b = b)
-        x = torch.cat((x, distill_tokens), dim = 1)
+        if distilling:
+            distill_tokens = repeat(distill_token, '() n d -> b n d', b = b)
+            x = torch.cat((x, distill_tokens), dim = 1)
 
         x = self._attend(x, mask)
 
-        x, distill_tokens = x[:, :-1], x[:, -1]
+        if distilling:
+            x, distill_tokens = x[:, :-1], x[:, -1]
+
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 
         x = self.to_latent(x)
-        return self.mlp_head(x), distill_tokens
+        out = self.mlp_head(x)
+
+        if distilling:
+            return out, distill_tokens
+
+        return out
 
 class DistillableViT(DistillMixin, ViT):
     def __init__(self, *args, **kwargs):

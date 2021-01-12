@@ -40,7 +40,7 @@ preds = v(img, mask = mask) # (1, 1000)
 
 ## Parameters
 - `image_size`: int.  
-Image size.
+Image size. If you have rectangular images, make sure your image size is the maximum of the width and height
 - `patch_size`: int.  
 Number of patches. `image_size` must be divisible by `patch_size`.  
 The number of patches is: ` n = (image_size // patch_size) ** 2` and `n` **must be greater than 16**.

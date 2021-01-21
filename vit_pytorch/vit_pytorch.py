@@ -38,7 +38,7 @@ class Attention(nn.Module):
         super().__init__()
         inner_dim = dim_head *  heads
         self.heads = heads
-        self.scale = dim ** -0.5
+        self.scale = dim_head ** -0.5
 
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
         self.to_out = nn.Sequential(

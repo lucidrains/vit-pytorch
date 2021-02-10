@@ -7,6 +7,8 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
+from vit_pytorch import MPPLoss
+
 # helpers
 
 def prob_mask_like(t, prob):
@@ -32,12 +34,14 @@ class MPP(nn.Module):
         transformer,
         patch_size,
         dim,
+        channels = 3,
         mask_prob = 0.15,
         replace_prob = 0.5,
         random_patch_prob = 0.5):
         super().__init__()
 
         self.transformer = transformer
+        self.loss = MPPLoss(patch_size)
         
         # vit related dimensions
         self.patch_size = patch_size
@@ -48,9 +52,11 @@ class MPP(nn.Module):
         self.random_patch_prob = random_patch_prob
 
         # token ids
-        self.mask_token = nn.Parameter(torch.randn(1, 1, dim))
+        self.mask_token = nn.Parameter(torch.randn(1, 1, dim * channels))
 
     def forward(self, input, **kwargs):
+        # clone original image for loss
+        img = input.clone().detach()
 
         # reshape raw image to patches
         p = self.patch_size
@@ -75,17 +81,15 @@ class MPP(nn.Module):
         bool_mask_replace = (mask * replace_prob) == True
         masked_input[bool_mask_replace] = self.mask_token
 
-        # set inverse of mask to padding tokens for labels
+        # get labels for input patches that were masked
         bool_mask = mask == True
         labels = input[bool_mask]
 
         # get generator output and get mpp loss
-        logits = self.transformer(masked_input, **kwargs)
+        cls_logits = self.transformer(masked_input, mpp=True, **kwargs)
+        logits = cls_logits[:,1:,:]
 
-        mpp_loss = F.cross_entropy(
-            logits.transpose(1, 2),
-            labels,
-        )
+        mpp_loss = self.loss(logits, img, mask)
 
         return mpp_loss
 

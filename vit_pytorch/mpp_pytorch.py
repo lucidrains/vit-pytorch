@@ -7,8 +7,6 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
-from vit_pytorch import MPPLoss
-
 # helpers
 
 def prob_mask_like(t, prob):
@@ -25,6 +23,28 @@ def get_mask_subset_with_prob(patched_input, prob):
     new_mask = torch.zeros((batch, seq_len), device=device)
     new_mask.scatter_(1, sampled_indices, 1)
     return new_mask.bool()
+
+# mpp loss
+
+class MPPLoss(nn.Module):
+    def __init__(self, patch_size):
+        super(MPPLoss, self).__init__()
+        self.patch_size = patch_size
+
+    def forward(self, predicted_patches, target, mask):
+        # reshape target to patches
+        p = self.patch_size
+        target = rearrange(target, "b c (h p1) (w p2) -> b (h w) c (p1 p2) ", p1 = p, p2 = p)
+
+        channel_bins = torch.tensor([0.333, 0.666, 1.0])
+        target = torch.bucketize(target, channel_bins, right=True)
+        target = target.float().mean(dim=3)
+
+        predicted_patches = predicted_patches[mask]
+        target = target[mask]
+
+        loss = F.mse_loss(predicted_patches, target)
+        return loss
 
 # main class
 

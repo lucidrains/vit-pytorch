@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from einops import rearrange
+from einops import rearrange, repeat
 
 # helpers
 
@@ -27,23 +27,29 @@ def get_mask_subset_with_prob(patched_input, prob):
 # mpp loss
 
 class MPPLoss(nn.Module):
-    def __init__(self, patch_size):
+    def __init__(self, patch_size, channels, output_channel_bits):
         super(MPPLoss, self).__init__()
         self.patch_size = patch_size
+        self.channels = channels
+        self.output_channel_bits = output_channel_bits
 
     def forward(self, predicted_patches, target, mask):
         # reshape target to patches
         p = self.patch_size
         target = rearrange(target, "b c (h p1) (w p2) -> b (h w) c (p1 p2) ", p1 = p, p2 = p)
 
+        avg_target = target.mean(dim=3)
+
         channel_bins = torch.tensor([0.333, 0.666, 1.0])
-        target = torch.bucketize(target, channel_bins, right=True)
-        target = target.float().mean(dim=3)
+        descritized_target = torch.bucketize(avg_target, channel_bins, right=True)
+        descritized_target = F.one_hot(descritized_target, self.output_channel_bits)
+        c, bi = self.channels, self.output_channel_bits
+        descritized_target = rearrange(descritized_target, "b n c bi -> b n (c bi)", c = c, bi = bi)
 
         predicted_patches = predicted_patches[mask]
-        target = target[mask]
+        descritized_target = descritized_target[mask]
 
-        loss = F.mse_loss(predicted_patches, target)
+        loss = F.mse_loss(predicted_patches, descritized_target)
         return loss
 
 # main class
@@ -54,6 +60,7 @@ class MPP(nn.Module):
         transformer,
         patch_size,
         dim,
+        output_channel_bits = 3,
         channels = 3,
         mask_prob = 0.15,
         replace_prob = 0.5,
@@ -61,7 +68,10 @@ class MPP(nn.Module):
         super().__init__()
 
         self.transformer = transformer
-        self.loss = MPPLoss(patch_size)
+        self.loss = MPPLoss(patch_size, channels, output_channel_bits)
+
+        # output transformation
+        self.to_bits = nn.Linear(dim, output_channel_bits * channels)
         
         # vit related dimensions
         self.patch_size = patch_size
@@ -101,12 +111,21 @@ class MPP(nn.Module):
         bool_mask_replace = (mask * replace_prob) == True
         masked_input[bool_mask_replace] = self.mask_token
 
-        # get labels for input patches that were masked
-        bool_mask = mask == True
-        labels = input[bool_mask]
+        # linear embedding of patches
+        masked_input = self.transformer.patch_to_embedding(masked_input)
+
+        # add cls token to input sequence
+        b, n, _ = masked_input.shape
+        cls_tokens = repeat(self.transformer.cls_token, '() n d -> b n d', b = b)
+        masked_input = torch.cat((cls_tokens, masked_input), dim=1)
+
+        # add positional embeddings to input
+        masked_input += self.transformer.pos_embedding[:, :(n + 1)]
+        masked_input = self.transformer.dropout(masked_input)
 
         # get generator output and get mpp loss
-        cls_logits = self.transformer(masked_input, mpp=True, **kwargs)
+        masked_input = self.transformer.transformer(masked_input, **kwargs)
+        cls_logits = self.to_bits(masked_input)
         logits = cls_logits[:,1:,:]
 
         mpp_loss = self.loss(logits, img, mask)

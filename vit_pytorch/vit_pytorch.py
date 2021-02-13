@@ -109,13 +109,10 @@ class ViT(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
-    def forward(self, img, mask = None, mpp = False):
-        if mpp:
-            x = img
-        else:
-            p = self.patch_size
-            x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
+    def forward(self, img, mask = None):
+        p = self.patch_size
 
+        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
         x = self.patch_to_embedding(x)
         b, n, _ = x.shape
 
@@ -126,8 +123,7 @@ class ViT(nn.Module):
 
         x = self.transformer(x, mask)
 
-        if not mpp:
-            x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 
         x = self.to_latent(x)
         return self.mlp_head(x)

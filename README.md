@@ -173,23 +173,22 @@ A pytorch-lightning script is ready for you to use at the repository link above.
 
 There may be some coming from computer vision who think attention still suffers from quadratic costs. Fortunately, we have a lot of new techniques that may help. This repository offers a way for you to plugin your own sparse attention transformer.
 
-An example with <a href="https://arxiv.org/abs/2006.04768">Linformer</a>
+An example with <a href="https://arxiv.org/abs/2102.03902">Nystromformer</a>
 
 ```bash
-$ pip install linformer
+$ pip install nystrom-attention
 ```
 
 ```python
 import torch
 from vit_pytorch.efficient import ViT
-from linformer import Linformer
+from nystrom_attention import Nystromformer
 
-efficient_transformer = Linformer(
+efficient_transformer = Nystromformer(
     dim = 512,
-    seq_len = 4096 + 1,  # 64 x 64 patches + 1 cls token
     depth = 12,
     heads = 8,
-    k = 256
+    num_landmarks = 256
 )
 
 v = ViT(

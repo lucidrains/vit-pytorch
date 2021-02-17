@@ -51,19 +51,19 @@ class Attention(nn.Module):
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
 
-        dots = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
+        dots = torch.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
         mask_value = -torch.finfo(dots.dtype).max
 
         if mask is not None:
             mask = F.pad(mask.flatten(1), (1, 0), value = True)
             assert mask.shape[-1] == dots.shape[-1], 'mask has incorrect dimensions'
-            mask = mask[:, None, :] * mask[:, :, None]
+            mask = rearrange(mask, 'b i -> b () i ()') * rearrange(mask, 'b j -> b () () j')
             dots.masked_fill_(~mask, mask_value)
             del mask
 
         attn = dots.softmax(dim=-1)
 
-        out = torch.einsum('bhij,bhjd->bhid', attn, v)
+        out = torch.einsum('b h i j, b h j d -> b h i d', attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         out =  self.to_out(out)
         return out

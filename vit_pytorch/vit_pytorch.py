@@ -1,7 +1,10 @@
+import math
 import torch
+from torch import nn, einsum
 import torch.nn.functional as F
+
 from einops import rearrange, repeat
-from torch import nn
+from einops.layers.torch import Rearrange
 
 MIN_NUM_PATCHES = 16
 
@@ -51,7 +54,7 @@ class Attention(nn.Module):
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
 
-        dots = torch.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
         mask_value = -torch.finfo(dots.dtype).max
 
         if mask is not None:
@@ -63,13 +66,13 @@ class Attention(nn.Module):
 
         attn = dots.softmax(dim=-1)
 
-        out = torch.einsum('b h i j, b h j d -> b h i d', attn, v)
+        out = einsum('b h i j, b h j d -> b h i d', attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         out =  self.to_out(out)
         return out
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
         for _ in range(depth):
@@ -92,10 +95,12 @@ class ViT(nn.Module):
         assert num_patches > MIN_NUM_PATCHES, f'your number of patches ({num_patches}) is way too small for attention to be effective (at least 16). Try decreasing your patch size'
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
-        self.patch_size = patch_size
+        self.to_patch_embedding = nn.Sequential(
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.Linear(patch_dim, dim),
+        )
 
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
-        self.patch_to_embedding = nn.Linear(patch_dim, dim)
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
@@ -110,10 +115,7 @@ class ViT(nn.Module):
         )
 
     def forward(self, img, mask = None):
-        p = self.patch_size
-
-        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
-        x = self.patch_to_embedding(x)
+        x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)

@@ -117,6 +117,31 @@ v = v.to_vit()
 type(v) # <class 'vit_pytorch.vit_pytorch.ViT'>
 ```
 
+## Token-to-Token ViT
+
+<img src="./t2t.png" width="400px"></img>
+
+<a href="https://arxiv.org/abs/2101.11986">This paper</a> proposes that the first couple layers should downsample the image sequence by unfolding, leading to overlapping image data in each token as shown in the figure above. You can use this variant of the `ViT` as follows.
+
+```python
+import torch
+from vit_pytorch.t2t import T2TViT
+
+v = T2TViT(
+    dim = 512,
+    image_size = 224,
+    patch_size = 16,
+    depth = 5,
+    heads = 8,
+    mlp_dim = 512,
+    num_classes = 1000,
+    t2t_layers = ((7, 4), (3, 2), (3, 2)) # tuples of the kernel size and stride of each consecutive layers of the initial token to token module
+)
+
+img = torch.randn(1, 3, 224, 224)
+v(img) # (1, 1000)
+```
+
 ## Research Ideas
 
 ### Self Supervised Training
@@ -270,6 +295,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     eprint  = {2012.12877},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{yuan2021tokenstotoken,
+      title     = {Tokens-to-Token ViT: Training Vision Transformers from Scratch on ImageNet},
+      author    = {Li Yuan and Yunpeng Chen and Tao Wang and Weihao Yu and Yujun Shi and Francis EH Tay and Jiashi Feng and Shuicheng Yan},
+      year      = {2021},
+      eprint    = {2101.11986},
+      archivePrefix = {arXiv},
+      primaryClass = {cs.CV}
 }
 ```
 

@@ -130,7 +130,6 @@ from vit_pytorch.t2t import T2TViT
 v = T2TViT(
     dim = 512,
     image_size = 224,
-    patch_size = 16,
     depth = 5,
     heads = 8,
     mlp_dim = 512,

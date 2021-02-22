@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from vit_pytorch.vit_pytorch import ViT
+from vit_pytorch.t2t import T2TViT
 from vit_pytorch.efficient import ViT as EfficientViT
 
 from einops import rearrange, repeat
@@ -60,6 +61,24 @@ class DistillableViT(DistillMixin, ViT):
         x = self.transformer(x, mask)
         return x
 
+class DistillableT2TViT(DistillMixin, T2TViT):
+    def __init__(self, *args, **kwargs):
+        super(DistillableT2TViT, self).__init__(*args, **kwargs)
+        self.args = args
+        self.kwargs = kwargs
+        self.dim = kwargs['dim']
+        self.num_classes = kwargs['num_classes']
+
+    def to_vit(self):
+        v = T2TViT(*self.args, **self.kwargs)
+        v.load_state_dict(self.state_dict())
+        return v
+
+    def _attend(self, x, mask):
+        x = self.dropout(x)
+        x = self.transformer(x)
+        return x
+
 class DistillableEfficientViT(DistillMixin, EfficientViT):
     def __init__(self, *args, **kwargs):
         super(DistillableEfficientViT, self).__init__(*args, **kwargs)
@@ -88,7 +107,7 @@ class DistillWrapper(nn.Module):
         alpha = 0.5
     ):
         super().__init__()
-        assert (isinstance(student, (DistillableViT, DistillableEfficientViT))) , 'student must be a vision transformer'
+        assert (isinstance(student, (DistillableViT, DistillableT2TViT, DistillableEfficientViT))) , 'student must be a vision transformer'
 
         self.teacher = teacher
         self.student = student

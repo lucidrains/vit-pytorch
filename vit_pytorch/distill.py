@@ -15,10 +15,8 @@ def exists(val):
 
 class DistillMixin:
     def forward(self, img, distill_token = None, mask = None):
-        p, distilling = self.patch_size, exists(distill_token)
-
-        x = rearrange(img, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = p, p2 = p)
-        x = self.patch_to_embedding(x)
+        distilling = exists(distill_token)
+        x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)

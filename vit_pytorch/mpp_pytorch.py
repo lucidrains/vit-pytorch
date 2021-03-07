@@ -60,9 +60,14 @@ class MPPLoss(nn.Module):
                                        c=c,
                                        bi=bi)
 
+        bin_mask = 2**torch.arange(c * bi - 1, -1,
+                                   -1).to(discretized_target.device,
+                                          discretized_target.dtype)
+        target_label = torch.sum(bin_mask * discretized_target, -1)
+
         predicted_patches = predicted_patches[mask]
-        discretized_target = discretized_target[mask]
-        loss = F.mse_loss(predicted_patches, discretized_target)
+        target_label = target_label[mask]
+        loss = F.cross_entropy(predicted_patches, target_label)
         return loss
 
 
@@ -87,7 +92,7 @@ class MPP(nn.Module):
                             max_pixel_val)
 
         # output transformation
-        self.to_bits = nn.Linear(dim, output_channel_bits * channels)
+        self.to_bits = nn.Linear(dim, 2**(output_channel_bits * channels))
 
         # vit related dimensions
         self.patch_size = patch_size

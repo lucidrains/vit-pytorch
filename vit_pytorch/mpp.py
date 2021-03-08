@@ -106,6 +106,7 @@ class MPP(nn.Module):
         self.mask_token = nn.Parameter(torch.randn(1, 1, dim * channels))
 
     def forward(self, input, **kwargs):
+        transformer = self.transformer
         # clone original image for loss
         img = input.clone().detach()
 
@@ -144,19 +145,19 @@ class MPP(nn.Module):
         masked_input[bool_mask_replace] = self.mask_token
 
         # linear embedding of patches
-        masked_input = self.transformer.patch_to_embedding(masked_input)
+        masked_input = transformer.to_patch_embedding[-1](masked_input)
 
         # add cls token to input sequence
         b, n, _ = masked_input.shape
-        cls_tokens = repeat(self.transformer.cls_token, '() n d -> b n d', b=b)
+        cls_tokens = repeat(transformer.cls_token, '() n d -> b n d', b=b)
         masked_input = torch.cat((cls_tokens, masked_input), dim=1)
 
         # add positional embeddings to input
-        masked_input += self.transformer.pos_embedding[:, :(n + 1)]
-        masked_input = self.transformer.dropout(masked_input)
+        masked_input += transformer.pos_embedding[:, :(n + 1)]
+        masked_input = transformer.dropout(masked_input)
 
         # get generator output and get mpp loss
-        masked_input = self.transformer.transformer(masked_input, **kwargs)
+        masked_input = transformer.transformer(masked_input, **kwargs)
         cls_logits = self.to_bits(masked_input)
         logits = cls_logits[:, 1:, :]
 

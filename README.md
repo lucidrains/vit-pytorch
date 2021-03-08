@@ -141,15 +141,14 @@ img = torch.randn(1, 3, 224, 224)
 v(img) # (1, 1000)
 ```
 
-## Research Ideas
+## Masked Patch Prediction
 
-### Self Supervised Training
-
-You can train using the original masked patch prediction task presented in the paper, with the following code.
+Thanks to <a href="https://github.com/zankner">Zach</a>, you can train using the original masked patch prediction task presented in the paper, with the following code.
 
 ```python
 import torch
-from vit_pytorch import ViT, MPP
+from vit_pytorch import ViT
+from vit_pytorch.mpp import MPP
 
 model = ViT(image_size=256,
             patch_size=32,
@@ -165,9 +164,9 @@ mpp_trainer = MPP(
     transformer=model,
     patch_size=32,
     dim=1024,
-    mask_prob=0.15,  # probability of using token in masked prediction task
+    mask_prob=0.15,          # probability of using token in masked prediction task
     random_patch_prob=0.30,  # probability of randomly replacing a token being used for mpp
-    replace_prob=0.50,  # probability of replacing a token being used for mpp with the mask token
+    replace_prob=0.50,       # probability of replacing a token being used for mpp with the mask token
 )
 
 opt = torch.optim.Adam(mpp_trainer.parameters(), lr=3e-4)
@@ -187,6 +186,10 @@ for _ in range(100):
 # save your improved network
 torch.save(model.state_dict(), './pretrained-net.pt')
 ```
+
+## Research Ideas
+
+### Self Supervised Training
 
 You can train this with a near SOTA self-supervised learning technique, <a href="https://github.com/lucidrains/byol-pytorch">BYOL</a>, with the following code.
 

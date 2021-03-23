@@ -117,6 +117,33 @@ v = v.to_vit()
 type(v) # <class 'vit_pytorch.vit_pytorch.ViT'>
 ```
 
+## Deep ViT
+
+This <a href="https://arxiv.org/abs/2103.11886">paper</a> notes that ViT struggles to attend at greater depths (past 12 layers), and suggests mixing the attention of each head post-softmax as a solution, dubbed Re-attention. The results line up with the <a href="https://github.com/lucidrains/x-transformers#talking-heads-attention">Talking Heads</a> paper from NLP.
+
+You can use it as follows
+
+```python
+import torch
+from vit_pytorch.deepvit import DeepViT
+
+v = DeepViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
+```
+
 ## Token-to-Token ViT
 
 <img src="./t2t.png" width="400px"></img>
@@ -345,12 +372,23 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{yuan2021tokenstotoken,
-      title     = {Tokens-to-Token ViT: Training Vision Transformers from Scratch on ImageNet},
-      author    = {Li Yuan and Yunpeng Chen and Tao Wang and Weihao Yu and Yujun Shi and Francis EH Tay and Jiashi Feng and Shuicheng Yan},
-      year      = {2021},
-      eprint    = {2101.11986},
-      archivePrefix = {arXiv},
-      primaryClass = {cs.CV}
+    title     = {Tokens-to-Token ViT: Training Vision Transformers from Scratch on ImageNet},
+    author    = {Li Yuan and Yunpeng Chen and Tao Wang and Weihao Yu and Yujun Shi and Francis EH Tay and Jiashi Feng and Shuicheng Yan},
+    year      = {2021},
+    eprint    = {2101.11986},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{zhou2021deepvit,
+    title   = {DeepViT: Towards Deeper Vision Transformer},
+    author  = {Daquan Zhou and Bingyi Kang and Xiaojie Jin and Linjie Yang and Xiaochen Lian and Qibin Hou and Jiashi Feng},
+    year    = {2021},
+    eprint  = {2103.11886},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
 }
 ```
 

@@ -1,4 +1,4 @@
-<img src="./vit.gif" width="500px"></img>
+<img src="./images/vit.gif" width="500px"></img>
 
 ## Vision Transformer - Pytorch
 
@@ -63,7 +63,7 @@ Embedding dropout rate.
 
 ## Distillation
 
-<img src="./distill.png" width="300px"></img>
+<img src="./images/distill.png" width="300px"></img>
 
 A recent <a href="https://arxiv.org/abs/2012.12877">paper</a> has shown that use of a distillation token for distilling knowledge from convolutional nets to vision transformer can yield small and efficient vision transformers. This repository offers the means to do distillation easily.
 
@@ -145,7 +145,7 @@ preds = v(img) # (1, 1000)
 
 ## Token-to-Token ViT
 
-<img src="./t2t.png" width="400px"></img>
+<img src="./images/t2t.png" width="400px"></img>
 
 <a href="https://arxiv.org/abs/2101.11986">This paper</a> proposes that the first couple layers should downsample the image sequence by unfolding, leading to overlapping image data in each token as shown in the figure above. You can use this variant of the `ViT` as follows.
 

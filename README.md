@@ -213,6 +213,38 @@ for _ in range(100):
 torch.save(model.state_dict(), './pretrained-net.pt')
 ```
 
+## Accessing Attention
+
+If you would like to visualize the attention weights (post-softmax) for your research, just follow the procedure below
+
+```python
+import torch
+from vit_pytorch import ViT
+
+from vit_pytorch.recorder import Recorder # import the Recorder and instantiate
+rec = Recorder()
+
+v = ViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+preds = v(img, rec = rec) # pass in the recorder
+
+# there is one extra patch due to the CLS token
+
+rec.attn  # (1, 6, 16, 65, 65) - (batch x layers x heads x patch x patch)
+```
+
 ## Research Ideas
 
 ### Self Supervised Training

@@ -5,12 +5,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
-class Residual(nn.Module):
-    def __init__(self, fn):
-        super().__init__()
-        self.fn = fn
-    def forward(self, x, **kwargs):
-        return self.fn(x, **kwargs) + x
+from vit_pytorch.recorder import record_wrapper
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
@@ -49,7 +44,7 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x, rec = None):
         b, n, _, h = *x.shape, self.heads
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
@@ -61,6 +56,10 @@ class Attention(nn.Module):
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         out =  self.to_out(out)
+
+        if rec is not None:
+            rec.record(attn)
+
         return out
 
 class Transformer(nn.Module):
@@ -69,13 +68,13 @@ class Transformer(nn.Module):
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Residual(PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout))),
-                Residual(PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout)))
+                PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)),
+                PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout))
             ]))
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         for attn, ff in self.layers:
-            x = attn(x)
-            x = ff(x)
+            x = attn(x, **kwargs) + x
+            x = ff(x) + x
         return x
 
 class ViT(nn.Module):
@@ -105,7 +104,8 @@ class ViT(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
-    def forward(self, img):
+    @record_wrapper
+    def forward(self, img, **kwargs):
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 
@@ -114,7 +114,7 @@ class ViT(nn.Module):
         x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
 
-        x = self.transformer(x)
+        x = self.transformer(x, **kwargs)
 
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 

@@ -1,35 +1,57 @@
 from functools import wraps
 import torch
+from torch import nn
+
+from vit_pytorch.vit import Attention
 
 def exists(val):
     return val is not None
 
-def record_wrapper(fn):
-    @wraps(fn)
-    def inner(model, img, **kwargs):
-        rec = kwargs.pop('rec', None)
-        if exists(rec):
-            rec.clear()
+def find_modules(nn_module, type):
+    return [module for module in nn_module.modules() if isinstance(module, type)]
 
-        out = fn(model, img, rec = rec, **kwargs)
-
-        if exists(rec):
-            rec.finalize()
-        return out
-    return inner
-
-class Recorder():
-    def __init__(self):
+class Recorder(nn.Module):
+    def __init__(self, vit):
         super().__init__()
-        self._layer_attns = []
-        self.attn = None
+        self.vit = vit
+
+        self.data = None
+        self.recordings = []
+        self.hooks = []
+        self.hook_registered = False
+        self.ejected = False
+
+    def _hook(self, _, input, output):
+        self.recordings.append(output.clone().detach())
+
+    def _register_hook(self):
+        modules = find_modules(self, Attention)
+        for module in modules:
+            handle = module.attend.register_forward_hook(self._hook)
+            self.hooks.append(handle)
+        self.hook_registered = True
+
+    def eject(self):
+        self.ejected = True
+        for hook in self.hooks:
+            hook.remove()
+        self.hooks.clear()
+        return self.vit
 
     def clear(self):
-        self._layer_attns.clear()
-        self.attn = None
-
-    def finalize(self):
-        self.attn = torch.stack(self._layer_attns, dim = 1)
+        self.recordings.clear()
 
     def record(self, attn):
-        self._layer_attns.append(attn.clone().detach())
+        recording = attn.clone().detach()
+        self.recordings.append(recording)
+
+    def forward(self, img):
+        assert not self.ejected, 'recorder has been ejected, cannot be used anymore'
+        self.clear()
+
+        if not self.hook_registered:
+            self._register_hook()
+
+        pred = self.vit(img)
+        attns = torch.stack(self.recordings, dim = 1)
+        return pred, attns

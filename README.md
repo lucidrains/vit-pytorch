@@ -219,10 +219,7 @@ If you would like to visualize the attention weights (post-softmax) for your res
 
 ```python
 import torch
-from vit_pytorch import ViT
-
-from vit_pytorch.recorder import Recorder # import the Recorder and instantiate
-rec = Recorder()
+from vit_pytorch.vit import ViT
 
 v = ViT(
     image_size = 256,
@@ -236,13 +233,25 @@ v = ViT(
     emb_dropout = 0.1
 )
 
-img = torch.randn(1, 3, 256, 256)
+# import Recorder and wrap the ViT
 
-preds = v(img, rec = rec) # pass in the recorder
+from vit_pytorch.recorder import Recorder
+v = Recorder(v)
+
+# forward pass now returns predictions and the attention maps
+
+img = torch.randn(1, 3, 256, 256)
+preds, attns = v(img)
 
 # there is one extra patch due to the CLS token
 
-rec.attn  # (1, 6, 16, 65, 65) - (batch x layers x heads x patch x patch)
+attns # (1, 6, 16, 65, 65) - (batch x layers x heads x patch x patch)
+```
+
+to cleanup the class and the hooks once you have collected enough data
+
+```python
+v = v.eject()  # wrapper is discarded and original ViT instance is returned
 ```
 
 ## Research Ideas

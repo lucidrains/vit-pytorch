@@ -444,6 +444,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@misc{wu2021cvt,
+    title   = {CvT: Introducing Convolutions to Vision Transformers},
+    author  = {Haiping Wu and Bin Xiao and Noel Codella and Mengchen Liu and Xiyang Dai and Lu Yuan and Lei Zhang},
+    year    = {2021},
+    eprint  = {2103.15808},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
 @misc{vaswani2017attention,
     title   = {Attention Is All You Need},
     author  = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin},

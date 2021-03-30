@@ -433,6 +433,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@misc{chen2021crossvit,
+    title   = {CrossViT: Cross-Attention Multi-Scale Vision Transformer for Image Classification},
+    author  = {Chun-Fu Chen and Quanfu Fan and Rameswar Panda},
+    year    = {2021},
+    eprint  = {2103.14899},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
 @misc{vaswani2017attention,
     title   = {Attention Is All You Need},
     author  = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin},

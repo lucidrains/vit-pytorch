@@ -455,6 +455,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@misc{heo2021rethinking,
+    title   = {Rethinking Spatial Dimensions of Vision Transformers}, 
+    author  = {Byeongho Heo and Sangdoo Yun and Dongyoon Han and Sanghyuk Chun and Junsuk Choe and Seong Joon Oh},
+    year    = {2021},
+    eprint  = {2103.16302},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
 @misc{vaswani2017attention,
     title   = {Attention Is All You Need},
     author  = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin},

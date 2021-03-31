@@ -167,6 +167,114 @@ img = torch.randn(1, 3, 224, 224)
 v(img) # (1, 1000)
 ```
 
+## Cross ViT
+
+<img src="./images/cross_vit.png" width="400px"></img>
+
+<a href="https://arxiv.org/abs/2103.14899">This paper</a> proposes to have two vision transformers processing the image at different scales, cross attending to one every so often. They show improvements on top of the base vision transformer.
+
+```python
+import torch
+from vit_pytorch.cross_vit import CrossViT
+
+model = CrossViT(
+    image_size = 256,
+    num_classes = 1000,
+    depth = 4,               # number of multi-scale encoding blocks
+    sm_dim = 192,            # high res dimension
+    sm_patch_size = 16,      # high res patch size (should be smaller than lg_patch_size)
+    sm_enc_depth = 2,        # high res depth
+    sm_enc_heads = 8,        # high res heads
+    sm_enc_mlp_dim = 2048,   # high res feedforward dimension
+    lg_dim = 384,            # low res dimension
+    lg_patch_size = 64,      # low res patch size
+    lg_enc_depth = 3,        # low res depth
+    lg_enc_heads = 8,        # low res heads
+    lg_enc_mlp_dim = 2048,   # low res feedforward dimensions
+    cross_attn_depth = 2,    # cross attention rounds
+    cross_attn_heads = 8,    # cross attention heads
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+pred = model(img) # (1, 1000)
+```
+
+## PiT
+
+<img src="./images/pit.png" width="400px"></img>
+
+<a href="https://arxiv.org/abs/2103.16302">This paper</a> proposes to downsample the tokens through a pooling procedure using depth-wise convolutions.
+
+```python
+import torch
+from vit_pytorch.pit import PiT
+
+p = PiT(
+    image_size = 224,
+    patch_size = 14,
+    dim = 256,
+    num_classes = 1000,
+    depth = (3, 3, 3),     # list of depths, indicating the number of rounds of each stage before a downsample
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+# forward pass now returns predictions and the attention maps
+
+img = torch.randn(1, 3, 224, 224)
+
+preds = p(img) # (1, 1000)
+```
+
+## CvT
+
+<img src="./images/cvt.png" width="400px"></img>
+
+<a href="https://arxiv.org/abs/2103.15808">This paper</a> proposes mixing convolutions and attention. Specifically, convolutions are used to embed and downsample the image / feature map in three stages. Depthwise-convoltion is also used to project the queries, keys, and values for attention.
+
+```python
+import torch
+from vit_pytorch.cvt import CvT
+
+model = CvT(
+    num_classes = 1000,
+    s1_emb_dim = 64,        # stage 1 - dimension
+    s1_emb_kernel = 7,      # stage 1 - conv kernel
+    s1_emb_stride = 4,      # stage 1 - conv stride
+    s1_proj_kernel = 3,     # stage 1 - attention ds-conv kernel size
+    s1_kv_proj_stride = 2,  # stage 1 - attention key / value projection stride
+    s1_heads = 1,           # stage 1 - heads
+    s1_depth = 1,           # stage 1 - depth
+    s1_mlp_mult = 4,        # stage 1 - feedforward expansion factor
+    s2_emb_dim = 192,       # stage 2 - (same as above)
+    s2_emb_kernel = 3,
+    s2_emb_stride = 2,
+    s2_proj_kernel = 3,
+    s2_kv_proj_stride = 2,
+    s2_heads = 3,
+    s2_depth = 2,
+    s2_mlp_mult = 4,
+    s3_emb_dim = 384,       # stage 3 - (same as above)
+    s3_emb_kernel = 3,
+    s3_emb_stride = 2,
+    s3_proj_kernel = 3,
+    s3_kv_proj_stride = 2,
+    s3_heads = 4,
+    s3_depth = 10,
+    s3_mlp_mult = 4,
+    dropout = 0.
+)
+
+img = torch.randn(1, 3, 224, 224)
+
+pred = model(img) # (1, 1000)
+```
+
 ## Masked Patch Prediction
 
 Thanks to <a href="https://github.com/zankner">Zach</a>, you can train using the original masked patch prediction task presented in the paper, with the following code.

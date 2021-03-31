@@ -1,3 +1,5 @@
+# https://arxiv.org/abs/2103.16302
+
 from math import sqrt
 
 import torch

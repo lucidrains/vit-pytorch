@@ -1,3 +1,5 @@
+# https://arxiv.org/abs/2103.14899
+
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F

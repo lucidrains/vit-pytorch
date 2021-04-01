@@ -104,7 +104,8 @@ class DistillWrapper(nn.Module):
         teacher,
         student,
         temperature = 1.,
-        alpha = 0.5
+        alpha = 0.5,
+        hard = False
     ):
         super().__init__()
         assert (isinstance(student, (DistillableViT, DistillableT2TViT, DistillableEfficientViT))) , 'student must be a vision transformer'
@@ -116,6 +117,7 @@ class DistillWrapper(nn.Module):
         num_classes = student.num_classes
         self.temperature = temperature
         self.alpha = alpha
+        self.hard = hard
 
         self.distillation_token = nn.Parameter(torch.randn(1, 1, dim))
 
@@ -137,11 +139,15 @@ class DistillWrapper(nn.Module):
 
         loss = F.cross_entropy(student_logits, labels)
 
-        distill_loss = F.kl_div(
-            F.log_softmax(distill_logits / T, dim = -1),
-            F.softmax(teacher_logits / T, dim = -1).detach(),
-        reduction = 'batchmean')
+        if not self.hard:
+            distill_loss = F.kl_div(
+                F.log_softmax(distill_logits / T, dim = -1),
+                F.softmax(teacher_logits / T, dim = -1).detach(),
+            reduction = 'batchmean')
+
+        else:
+            teacher_labels = teacher_logits.argmax(dim = -1)
+            distill_loss = F.cross_entropy(student_logits, teacher_labels)
 
         distill_loss *= T ** 2
-
         return loss * alpha + distill_loss * (1 - alpha)

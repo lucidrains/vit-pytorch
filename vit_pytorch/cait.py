@@ -13,8 +13,15 @@ def exists(val):
 # classes
 
 class LayerScale(nn.Module):
-    def __init__(self, dim, fn, init_eps = 0.1):
+    def __init__(self, dim, fn, depth):
         super().__init__()
+        if depth <= 18:  # epsilon detailed in section 2 of paper
+            init_eps = 0.1
+        elif depth > 18 and depth <= 24:
+            init_eps = 1e-5
+        else:
+            init_eps = 1e-6
+
         scale = torch.zeros(1, 1, dim).fill_(init_eps)
         self.scale = nn.Parameter(scale)
         self.fn = fn
@@ -84,10 +91,10 @@ class Transformer(nn.Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
-        for _ in range(depth):
+        for ind in range(depth):
             self.layers.append(nn.ModuleList([
-                LayerScale(dim, PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout))),
-                LayerScale(dim, PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout)))
+                LayerScale(dim, PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)), depth = ind + 1),
+                LayerScale(dim, PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout)), depth = ind + 1)
             ]))
     def forward(self, x, context = None):
         for attn, ff in self.layers:

@@ -572,6 +572,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@misc{touvron2021going,
+    title   = {Going deeper with Image Transformers}, 
+    author  = {Hugo Touvron and Matthieu Cord and Alexandre Sablayrolles and Gabriel Synnaeve and Hervé Jégou},
+    year    = {2021},
+    eprint  = {2103.17239},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
 @misc{chen2021crossvit,
     title   = {CrossViT: Cross-Attention Multi-Scale Vision Transformer for Image Classification},
     author  = {Chun-Fu Chen and Quanfu Fan and Rameswar Panda},

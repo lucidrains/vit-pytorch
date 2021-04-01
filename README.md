@@ -143,6 +143,36 @@ img = torch.randn(1, 3, 256, 256)
 preds = v(img) # (1, 1000)
 ```
 
+## CaiT
+
+<a href="https://arxiv.org/abs/2103.17239">This paper</a> also notes difficulty in training vision transformers at greater depths and proposes two solutions. First it proposes to do per-channel multiplication of the output of the residual block. Second, it proposes to have the patches attend to one another, and only allow the CLS token to attend to the patches in the last few layers.
+
+They also add <a href="https://github.com/lucidrains/x-transformers#talking-heads-attention">Talking Heads</a>, noting improvements
+
+You can use this scheme as follows
+
+```python
+import torch
+from vit_pytorch.cait import CaiT
+
+v = CaiT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 12,         # depth of transformer for patch to patch attention only
+    cls_depth = 2,      # depth of cross attention of CLS tokens to patch
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
+```
+
 ## Token-to-Token ViT
 
 <img src="./images/t2t.png" width="400px"></img>
@@ -164,7 +194,8 @@ v = T2TViT(
 )
 
 img = torch.randn(1, 3, 224, 224)
-v(img) # (1, 1000)
+
+preds = v(img) # (1, 1000)
 ```
 
 ## Cross ViT
@@ -177,7 +208,7 @@ v(img) # (1, 1000)
 import torch
 from vit_pytorch.cross_vit import CrossViT
 
-model = CrossViT(
+v = CrossViT(
     image_size = 256,
     num_classes = 1000,
     depth = 4,               # number of multi-scale encoding blocks
@@ -199,7 +230,7 @@ model = CrossViT(
 
 img = torch.randn(1, 3, 256, 256)
 
-pred = model(img) # (1, 1000)
+pred = v(img) # (1, 1000)
 ```
 
 ## PiT
@@ -212,7 +243,7 @@ pred = model(img) # (1, 1000)
 import torch
 from vit_pytorch.pit import PiT
 
-p = PiT(
+v = PiT(
     image_size = 224,
     patch_size = 14,
     dim = 256,
@@ -228,7 +259,7 @@ p = PiT(
 
 img = torch.randn(1, 3, 224, 224)
 
-preds = p(img) # (1, 1000)
+preds = v(img) # (1, 1000)
 ```
 
 ## CvT
@@ -241,7 +272,7 @@ preds = p(img) # (1, 1000)
 import torch
 from vit_pytorch.cvt import CvT
 
-model = CvT(
+v = CvT(
     num_classes = 1000,
     s1_emb_dim = 64,        # stage 1 - dimension
     s1_emb_kernel = 7,      # stage 1 - conv kernel
@@ -272,7 +303,7 @@ model = CvT(
 
 img = torch.randn(1, 3, 224, 224)
 
-pred = model(img) # (1, 1000)
+pred = v(img) # (1, 1000)
 ```
 
 ## Masked Patch Prediction

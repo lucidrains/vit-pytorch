@@ -93,7 +93,8 @@ distiller = DistillWrapper(
     student = v,
     teacher = teacher,
     temperature = 3,           # temperature of distillation
-    alpha = 0.5                # trade between main loss and distillation loss
+    alpha = 0.5,               # trade between main loss and distillation loss
+    hard = False               # whether to use soft or hard distillation
 )
 
 img = torch.randn(2, 3, 256, 256)

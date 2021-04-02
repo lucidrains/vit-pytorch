@@ -1,3 +1,4 @@
+from random import randrange
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
@@ -9,6 +10,21 @@ from einops.layers.torch import Rearrange
 
 def exists(val):
     return val is not None
+
+def dropout_layers(layers, dropout):
+    if dropout == 0:
+        return layers
+
+    num_layers = len(layers)
+    to_drop = torch.zeros(num_layers).uniform_(0., 1.) < dropout
+
+    # make sure at least one layer makes it
+    if all(to_drop):
+        rand_index = randrange(num_layers)
+        to_drop[rand_index] = False
+
+    layers = [layer for (layer, drop) in zip(layers, to_drop) if not drop]
+    return layers
 
 # classes
 
@@ -88,16 +104,20 @@ class Attention(nn.Module):
         return self.to_out(out)
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., layer_dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
+        self.layer_dropout = layer_dropout
+
         for ind in range(depth):
             self.layers.append(nn.ModuleList([
                 LayerScale(dim, PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)), depth = ind + 1),
                 LayerScale(dim, PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout)), depth = ind + 1)
             ]))
     def forward(self, x, context = None):
-        for attn, ff in self.layers:
+        layers = dropout_layers(self.layers, dropout = self.layer_dropout)
+
+        for attn, ff in layers:
             x = attn(x, context = context) + x
             x = ff(x) + x
         return x
@@ -116,7 +136,8 @@ class CaiT(nn.Module):
         mlp_dim,
         dim_head = 64,
         dropout = 0.,
-        emb_dropout = 0.
+        emb_dropout = 0.,
+        layer_dropout = 0.
     ):
         super().__init__()
         assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
@@ -130,10 +151,11 @@ class CaiT(nn.Module):
 
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
+
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.patch_transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
-        self.cls_transformer = Transformer(dim, cls_depth, heads, dim_head, mlp_dim, dropout)
+        self.patch_transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, layer_dropout)
+        self.cls_transformer = Transformer(dim, cls_depth, heads, dim_head, mlp_dim, dropout, layer_dropout)
 
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),

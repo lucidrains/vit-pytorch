@@ -60,6 +60,30 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         )
 
+        # positional bias
+
+        self.pos_bias = nn.Embedding(fmap_size * fmap_size, heads)
+
+        q_range = torch.arange(0, fmap_size, step = (2 if downsample else 1))
+        k_range = torch.arange(fmap_size)
+
+        q_pos = torch.stack(torch.meshgrid(q_range, q_range), dim = -1)
+        k_pos = torch.stack(torch.meshgrid(k_range, k_range), dim = -1)
+
+        q_pos, k_pos = map(lambda t: rearrange(t, 'i j c -> (i j) c'), (q_pos, k_pos))
+        rel_pos = (q_pos[:, None, ...] - k_pos[None, :, ...]).abs()
+
+        x_rel, y_rel = rel_pos.unbind(dim = -1)
+        pos_indices = (x_rel * fmap_size) + y_rel
+
+        self.register_buffer('pos_indices', pos_indices)
+
+    def apply_pos_bias(self, fmap):
+        bias = self.pos_bias(self.pos_indices)
+        bias = rearrange(bias, 'i j h -> () h i j')
+        print(bias.shape, fmap.shape)
+        return fmap + bias
+
     def forward(self, x):
         b, n, *_, h = *x.shape, self.heads
 
@@ -70,6 +94,8 @@ class Attention(nn.Module):
         q, k, v = map(lambda t: rearrange(t, 'b (h d) ... -> b h (...) d', h = h), qkv)
 
         dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+
+        dots = self.apply_pos_bias(dots)
 
         attn = self.attend(dots)
 
@@ -115,19 +141,20 @@ class LeViT(nn.Module):
     ):
         super().__init__()
 
-        self.to_patch_embedding = nn.Sequential(
-            nn.Conv2d(3, 32, 3, stride = 2, padding = 1),
-            nn.Conv2d(32, 64, 3, stride = 2, padding = 1),
-            nn.Conv2d(64, 128, 3, stride = 2, padding = 1),
-            nn.Conv2d(128, 256, 3, stride = 2, padding = 1)
-        )
-
         dims = cast_tuple(dim, stages)
         depths = cast_tuple(depth, stages)
         layer_heads = cast_tuple(heads, stages)
 
-        fmap_size = image_size // (2 ** 4)
+        assert all(map(lambda t: len(t) == stages, (dims, depths, layer_heads))), 'dimensions, depths, and heads must be a tuple that is less than the designated number of stages'
 
+        self.to_patch_embedding = nn.Sequential(
+            nn.Conv2d(3, 32, 3, stride = 2, padding = 1),
+            nn.Conv2d(32, 64, 3, stride = 2, padding = 1),
+            nn.Conv2d(64, 128, 3, stride = 2, padding = 1),
+            nn.Conv2d(128, dims[0], 3, stride = 2, padding = 1)
+        )
+
+        fmap_size = image_size // (2 ** 4)
         layers = []
 
         for ind, dim, depth, heads in zip(range(stages), dims, depths, layer_heads):

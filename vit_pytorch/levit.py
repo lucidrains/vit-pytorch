@@ -135,7 +135,6 @@ class LeViT(nn.Module):
         dim_key = 32,
         dim_value = 64,
         dropout = 0.,
-        emb_dropout = 0.,
         num_distill_classes = None
     ):
         super().__init__()
@@ -146,7 +145,7 @@ class LeViT(nn.Module):
 
         assert all(map(lambda t: len(t) == stages, (dims, depths, layer_heads))), 'dimensions, depths, and heads must be a tuple that is less than the designated number of stages'
 
-        self.to_patch_embedding = nn.Sequential(
+        self.conv_embedding = nn.Sequential(
             nn.Conv2d(3, 32, 3, stride = 2, padding = 1),
             nn.Conv2d(32, 64, 3, stride = 2, padding = 1),
             nn.Conv2d(64, 128, 3, stride = 2, padding = 1),
@@ -176,7 +175,7 @@ class LeViT(nn.Module):
         self.mlp_head = nn.Linear(dim, num_classes)
 
     def forward(self, img):
-        x = self.to_patch_embedding(img)
+        x = self.conv_embedding(img)
 
         x = self.backbone(x)        
 

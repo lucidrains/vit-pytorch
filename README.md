@@ -264,6 +264,33 @@ img = torch.randn(1, 3, 224, 224)
 preds = v(img) # (1, 1000)
 ```
 
+## LeViT
+
+<img src="./images/levit.png" width="300px"></img>
+
+<a href="https://arxiv.org/abs/2104.01136">This paper</a> proposes a number of changes, including (1) convolutional embedding instead of patch-wise projection (2) downsampling in stages (3) extra non-linearity in attention (4) 2d relative positional biases instead of initial absolute positional bias (5) batchnorm in place of layernorm.
+
+```python
+import torch
+from vit_pytorch.levit import LeViT
+
+levit = LeViT(
+    image_size = 224,
+    num_classes = 1000,
+    stages = 3,             # number of stages
+    dim = (256, 384, 512),  # dimensions at each stage
+    depth = 4,
+    heads = (4, 6, 8),      # heads at each stage
+    mlp_mult = 2,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 224, 224)
+
+levit(img) # (1, 1000)
+```
+
 ## CvT
 
 <img src="./images/cvt.png" width="400px"></img>
@@ -612,6 +639,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Byeongho Heo and Sangdoo Yun and Dongyoon Han and Sanghyuk Chun and Junsuk Choe and Seong Joon Oh},
     year    = {2021},
     eprint  = {2103.16302},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{graham2021levit,
+    title   = {LeViT: a Vision Transformer in ConvNet's Clothing for Faster Inference},
+    author  = {Ben Graham and Alaaeldin El-Nouby and Hugo Touvron and Pierre Stock and Armand Joulin and Hervé Jégou and Matthijs Douze},
+    year    = {2021},
+    eprint  = {2104.01136},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

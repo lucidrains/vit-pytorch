@@ -655,6 +655,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@misc{li2021localvit,
+    title   = {LocalViT: Bringing Locality to Vision Transformers},
+    author  = {Yawei Li and Kai Zhang and Jiezhang Cao and Radu Timofte and Luc Van Gool},
+    year    = {2021},
+    eprint  = {2104.05707},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
 @misc{vaswani2017attention,
     title   = {Attention Is All You Need},
     author  = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin},

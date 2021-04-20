@@ -149,4 +149,4 @@ class LocalViT(nn.Module):
 
         x = self.transformer(x)
 
-        return self.mlp_head(x)
+        return self.mlp_head(x[:, 0])

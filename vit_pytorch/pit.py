@@ -162,8 +162,9 @@ class PiT(nn.Module):
                 layers.append(Pool(dim))
                 dim *= 2
 
-        self.layers = nn.Sequential(
-            *layers,
+        self.layers = nn.Sequential(*layers)
+
+        self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),
             nn.Linear(dim, num_classes)
         )
@@ -177,4 +178,6 @@ class PiT(nn.Module):
         x += self.pos_embedding
         x = self.dropout(x)
 
-        return self.layers(x)
+        x = self.layers(x)
+
+        return self.mlp_head(x[:, 0])

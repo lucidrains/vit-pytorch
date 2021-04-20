@@ -192,4 +192,4 @@ class RvT(nn.Module):
         fmap_dims = {'h': h // p, 'w': w // p}
         x = self.transformer(x, fmap_dims = fmap_dims)
 
-        return self.mlp_head(x)
+        return self.mlp_head(x[:, 0])

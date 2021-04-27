@@ -22,15 +22,25 @@ def group_by_key_prefix_and_remove_prefix(prefix, d):
 
 # classes
 
+class LayerNorm(nn.Module): # layernorm, but done in the channel dimension #1
+    def __init__(self, dim, eps = 1e-5):
+        super().__init__()
+        self.eps = eps
+        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
+        self.b = nn.Parameter(torch.zeros(1, dim, 1, 1))
+
+    def forward(self, x):
+        std = torch.var(x, dim = 1, unbiased = False, keepdim = True).sqrt()
+        mean = torch.mean(x, dim = 1, keepdim = True)
+        return (x - mean) / (std + self.eps) * self.g + self.b
+
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
         super().__init__()
-        self.norm = nn.LayerNorm(dim)
+        self.norm = LayerNorm(dim)
         self.fn = fn
     def forward(self, x, **kwargs):
-        x = rearrange(x, 'b c h w -> b h w c')
         x = self.norm(x)
-        x = rearrange(x, 'b h w c -> b c h w')
         return self.fn(x, **kwargs)
 
 class FeedForward(nn.Module):
@@ -146,6 +156,7 @@ class CvT(nn.Module):
 
             layers.append(nn.Sequential(
                 nn.Conv2d(dim, config['emb_dim'], kernel_size = config['emb_kernel'], padding = (config['emb_kernel'] // 2), stride = config['emb_stride']),
+                LayerNorm(config['emb_dim']),
                 Transformer(dim = config['emb_dim'], proj_kernel = config['proj_kernel'], kv_proj_stride = config['kv_proj_stride'], depth = config['depth'], heads = config['heads'], mlp_mult = config['mlp_mult'], dropout = dropout)
             ))
 

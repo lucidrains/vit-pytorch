@@ -53,10 +53,13 @@ class Attention(nn.Module):
 
         self.attend = nn.Softmax(dim = -1)
 
+        out_batch_norm = nn.BatchNorm2d(dim_out)
+        nn.init.zeros_(out_batch_norm.weight)
+
         self.to_out = nn.Sequential(
             nn.GELU(),
             nn.Conv2d(inner_dim_value, dim_out, 1),
-            nn.BatchNorm2d(dim_out),
+            out_batch_norm,
             nn.Dropout(dropout)
         )
 

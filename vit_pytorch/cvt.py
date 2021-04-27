@@ -67,8 +67,8 @@ class Attention(nn.Module):
 
         self.attend = nn.Softmax(dim = -1)
 
-        self.to_q = DepthWiseConv2d(dim, inner_dim, 3, padding = padding, stride = 1, bias = False)
-        self.to_kv = DepthWiseConv2d(dim, inner_dim * 2, 3, padding = padding, stride = kv_proj_stride, bias = False)
+        self.to_q = DepthWiseConv2d(dim, inner_dim, proj_kernel, padding = padding, stride = 1, bias = False)
+        self.to_kv = DepthWiseConv2d(dim, inner_dim * 2, proj_kernel, padding = padding, stride = kv_proj_stride, bias = False)
 
         self.to_out = nn.Sequential(
             nn.Conv2d(inner_dim, dim, 1),
@@ -130,7 +130,7 @@ class CvT(nn.Module):
         s3_emb_stride = 2,
         s3_proj_kernel = 3,
         s3_kv_proj_stride = 2,
-        s3_heads = 4,
+        s3_heads = 6,
         s3_depth = 10,
         s3_mlp_mult = 4,
         dropout = 0.

@@ -334,6 +334,47 @@ img = torch.randn(1, 3, 224, 224)
 pred = v(img) # (1, 1000)
 ```
 
+## Twins SVT
+
+<img src="./images/twins_svt.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2104.13840">paper</a> mixes local and global attention, along with positiona encoding generator (proposed in <a href="https://arxiv.org/abs/2102.10882">CPVT</a>) and global average pooling, to achieve the same results as <a href="https://arxiv.org/abs/2103.14030">Swin</a>, without the extra complexity of shifted windows, etc.
+
+```python
+import torch
+from vit_pytorch.twins_svt import TwinsSVT
+
+model = TwinsSVT(
+    num_classes = 1000,       # stage 1 - number of output classes
+    s1_emb_dim = 64,          # stage 1 - patch embedding projected dimension
+    s1_patch_size = 4,        # stage 1 - patch size for patch embedding
+    s1_local_patch_size = 7,  # stage 1 - patch size for local attention
+    s1_global_k = 7,          # stage 1 - global attention key / value reduction factor, defaults to 7 as specified in paper
+    s1_depth = 1,             # stage 1 - number of transformer blocks (local attn -> ff -> global attn -> ff)
+    s2_emb_dim = 128,         # stage 2 ...
+    s2_patch_size = 2,
+    s2_local_patch_size = 7,
+    s2_global_k = 7,
+    s2_depth = 1,
+    s3_emb_dim = 256,         # stage 3
+    s3_patch_size = 2,
+    s3_local_patch_size = 7,
+    s3_global_k = 7,
+    s3_depth = 5,
+    s4_emb_dim = 512,         # stage 4
+    s4_patch_size = 2,
+    s4_local_patch_size = 7,
+    s4_global_k = 7,
+    s4_depth = 4,
+    peg_kernel_size = 3,      # positional encoding generator kernel size
+    dropout = 0.              # dropout
+)
+
+img = torch.randn(1, 3, 224, 224)
+
+pred = model(img) # (1, 1000)
+```
+
 ## Masked Patch Prediction
 
 Thanks to <a href="https://github.com/zankner">Zach</a>, you can train using the original masked patch prediction task presented in the paper, with the following code.
@@ -660,6 +701,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Yawei Li and Kai Zhang and Jiezhang Cao and Radu Timofte and Luc Van Gool},
     year    = {2021},
     eprint  = {2104.05707},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{chu2021twins,
+    title   = {Twins: Revisiting Spatial Attention Design in Vision Transformers},
+    author  = {Xiangxiang Chu and Zhi Tian and Yuqing Wang and Bo Zhang and Haibing Ren and Xiaolin Wei and Huaxia Xia and Chunhua Shen},
+    year    = {2021},
+    eprint  = {2104.13840},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

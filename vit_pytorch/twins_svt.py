@@ -162,11 +162,11 @@ class Transformer(nn.Module):
                 Residual(PreNorm(dim, FeedForward(dim, mlp_mult, dropout = dropout)))
             ]))
     def forward(self, x):
-        for local_attn, ff, global_attn, ff in self.layers:
+        for local_attn, ff1, global_attn, ff2 in self.layers:
             x = local_attn(x)
-            x = ff(x)
+            x = ff1(x)
             x = global_attn(x)
-            x = ff(x)
+            x = ff2(x)
         return x
 
 class TwinsSVT(nn.Module):

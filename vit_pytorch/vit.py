@@ -74,13 +74,26 @@ class Transformer(nn.Module):
 class ViT(nn.Module):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
-        assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
-        num_patches = (image_size // patch_size) ** 2
-        patch_dim = channels * patch_size ** 2
+        if isinstance(image_size, int):
+            image_size = (image_size, image_size)
+        if isinstance(patch_size, int):
+            patch_size = (patch_size, patch_size)
+        print(patch_size, image_size)
+        
+        assert len(image_size) == 2, 'image_size should either be set by an integer or tuple of (width and height).'
+        assert len(patch_size) == 2, 'patch_size should either be set by an integer or tuple of (width and height).'
+
+        assert image_size[0] % patch_size[0] == 0, 'Image dimensions must be divisible by the patch size.'
+        assert image_size[1] % patch_size[1] == 0, 'Image dimensions must be divisible by the patch size.'
+
+        num_patches = (image_size[0] // patch_size[0]) * \
+            (image_size[1] // patch_size[1])
+        patch_dim = channels * patch_size[0] * patch_size[1]
+
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
         self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size[0], p2 = patch_size[1]),
             nn.Linear(patch_dim, dim),
         )
 

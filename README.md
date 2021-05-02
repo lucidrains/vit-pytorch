@@ -422,6 +422,56 @@ for _ in range(100):
 torch.save(model.state_dict(), './pretrained-net.pt')
 ```
 
+## Dino
+
+You can train `ViT` with the recent SOTA self-supervised learning technique, <a href="https://arxiv.org/abs/2104.14294">Dino</a>, with the following code.
+
+```python
+import torch
+from vit_pytorch import ViT, Dino
+
+model = ViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048
+)
+
+learner = Dino(
+    model,
+    image_size = 256,
+    hidden_layer = 'to_latent',        # hidden layer name or index, from which to extract the embedding
+    projection_hidden_size = 256,      # projector network hidden dimension
+    projection_layers = 4,             # number of layers in projection network
+    num_classes_K = 65336,             # output logits dimensions (referenced as K in paper)
+    student_temp = 0.9,                # student temperature
+    teacher_temp = 0.04,               # teacher temperature, needs to be annealed from 0.04 to 0.07 over 30 epochs
+    local_upper_crop_scale = 0.4,      # upper bound for local crop - 0.4 was recommended in the paper 
+    global_lower_crop_scale = 0.5,     # lower bound for global crop - 0.5 was recommended in the paper
+    moving_average_decay = 0.9,        # moving average of encoder - paper showed anywhere from 0.9 to 0.999 was ok
+    center_moving_average_decay = 0.9, # moving average of teacher centers - paper showed anywhere from 0.9 to 0.999 was ok
+)
+
+opt = torch.optim.Adam(learner.parameters(), lr = 3e-4)
+
+def sample_unlabelled_images():
+    return torch.randn(20, 3, 256, 256)
+
+for _ in range(100):
+    images = sample_unlabelled_images()
+    loss = learner(images)
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+    learner.update_moving_average() # update moving average of teacher encoder and teacher centers
+
+# save your improved network
+torch.save(model.state_dict(), './pretrained-net.pt')
+```
+
 ## Accessing Attention
 
 If you would like to visualize the attention weights (post-softmax) for your research, just follow the procedure below
@@ -464,56 +514,6 @@ v = v.eject()  # wrapper is discarded and original ViT instance is returned
 ```
 
 ## Research Ideas
-
-### Self Supervised Training
-
-You can train this with a near SOTA self-supervised learning technique, <a href="https://github.com/lucidrains/byol-pytorch">BYOL</a>, with the following code.
-
-(1)
-```bash
-$ pip install byol-pytorch
-```
-
-(2)
-```python
-import torch
-from vit_pytorch import ViT
-from byol_pytorch import BYOL
-
-model = ViT(
-    image_size = 256,
-    patch_size = 32,
-    num_classes = 1000,
-    dim = 1024,
-    depth = 6,
-    heads = 8,
-    mlp_dim = 2048
-)
-
-learner = BYOL(
-    model,
-    image_size = 256,
-    hidden_layer = 'to_latent'
-)
-
-opt = torch.optim.Adam(learner.parameters(), lr=3e-4)
-
-def sample_unlabelled_images():
-    return torch.randn(20, 3, 256, 256)
-
-for _ in range(100):
-    images = sample_unlabelled_images()
-    loss = learner(images)
-    opt.zero_grad()
-    loss.backward()
-    opt.step()
-    learner.update_moving_average() # update moving average of target encoder
-
-# save your improved network
-torch.save(model.state_dict(), './pretrained-net.pt')
-```
-
-A pytorch-lightning script is ready for you to use at the repository link above.
 
 ### Efficient Attention
 
@@ -778,6 +778,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     eprint  = {2104.09864},
     archivePrefix = {arXiv},
     primaryClass = {cs.CL}
+}
+```
+
+```bibtex
+@misc{caron2021emerging,
+    title   = {Emerging Properties in Self-Supervised Vision Transformers},
+    author  = {Mathilde Caron and Hugo Touvron and Ishan Misra and Hervé Jégou and Julien Mairal and Piotr Bojanowski and Armand Joulin},
+    year    = {2021},
+    eprint  = {2104.14294},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
 }
 ```
 

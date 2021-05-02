@@ -426,6 +426,8 @@ torch.save(model.state_dict(), './pretrained-net.pt')
 
 You can train `ViT` with the recent SOTA self-supervised learning technique, <a href="https://arxiv.org/abs/2104.14294">Dino</a>, with the following code.
 
+<a href="https://www.youtube.com/watch?v=h3ij3F3cPIk">Yannic Kilcher</a> video
+
 ```python
 import torch
 from vit_pytorch import ViT, Dino

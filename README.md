@@ -613,6 +613,29 @@ img = torch.randn(1, 3, 256, 128) # <-- not a square
 preds = v(img) # (1, 1000)
 ```
 
+- How do I pass in non-square patches?
+
+```python
+import torch
+from vit_pytorch import ViT
+
+v = ViT(
+    num_classes = 1000,
+    image_size = (256, 128),  # image size is a tuple of (height, width)
+    patch_size = (32, 16),    # patch size is a tuple of (height, width)
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 256, 128)
+
+preds = v(img)
+```
+
 ## Resources
 
 Coming from computer vision and new to transformers? Here are some resources that greatly accelerated my learning.

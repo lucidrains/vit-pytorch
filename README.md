@@ -271,6 +271,8 @@ preds = v(img) # (1, 1000)
 
 <a href="https://arxiv.org/abs/2104.01136">This paper</a> proposes a number of changes, including (1) convolutional embedding instead of patch-wise projection (2) downsampling in stages (3) extra non-linearity in attention (4) 2d relative positional biases instead of initial absolute positional bias (5) batchnorm in place of layernorm.
 
+<a href="https://github.com/facebookresearch/LeViT">Official repository</a>
+
 ```python
 import torch
 from vit_pytorch.levit import LeViT

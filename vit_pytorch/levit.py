@@ -95,9 +95,11 @@ class Attention(nn.Module):
         qkv = (q, self.to_k(x), self.to_v(x))
         q, k, v = map(lambda t: rearrange(t, 'b (h d) ... -> b h (...) d', h = h), qkv)
 
-        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+        dots = einsum('b h i d, b h j d -> b h i j', q, k)
 
         dots = self.apply_pos_bias(dots)
+
+        dots *= self.scale
 
         attn = self.attend(dots)
 

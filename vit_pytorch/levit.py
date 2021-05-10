@@ -84,7 +84,7 @@ class Attention(nn.Module):
     def apply_pos_bias(self, fmap):
         bias = self.pos_bias(self.pos_indices)
         bias = rearrange(bias, 'i j h -> () h i j')
-        return fmap + bias
+        return fmap + (bias / self.scale)
 
     def forward(self, x):
         b, n, *_, h = *x.shape, self.heads

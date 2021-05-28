@@ -378,6 +378,32 @@ img = torch.randn(1, 3, 224, 224)
 pred = model(img) # (1, 1000)
 ```
 
+## NesT
+
+<img src="./images/nest.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2105.12723">paper</a> decided to process the image in heirarchical stages, with attention only within tokens of local blocks, which aggregate as it moves up the heirarchy. The aggregation is done in the image plane, and contains a convolution to allow it to pass information across the boundary.
+
+You can use it with the following code (ex. NesT-T)
+
+```python
+import torch
+from vit_pytorch.nest import NesT
+
+nest = NesT(
+    image_size = 224,
+    patch_size = 4,
+    dim = 96,
+    heads = 3,
+    num_heirarchies = 3,        # number of heirarchies
+    block_repeats = (8, 4, 1),  # the number of transformer blocks at each heirarchy, starting from the bottom
+    num_classes = 1000
+)
+
+img = torch.randn(1, 3, 224, 224)
+pred = nest(img) # (1, 1000)
+```
+
 ## Masked Patch Prediction
 
 Thanks to <a href="https://github.com/zankner">Zach</a>, you can train using the original masked patch prediction task presented in the paper, with the following code.
@@ -784,6 +810,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     eprint  = {2104.09864},
     archivePrefix = {arXiv},
     primaryClass = {cs.CL}
+}
+```
+
+```bibtex
+@misc{zhang2021aggregating,
+    title   = {Aggregating Nested Transformers},
+    author  = {Zizhao Zhang and Han Zhang and Long Zhao and Ting Chen and Tomas Pfister},
+    year    = {2021},
+    eprint  = {2105.12723},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
 }
 ```
 

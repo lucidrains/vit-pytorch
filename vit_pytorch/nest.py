@@ -79,7 +79,7 @@ def Aggregate(dim, dim_out):
     return nn.Sequential(
         nn.Conv2d(dim, dim_out, 3, padding = 1),
         ChanNorm(dim_out),
-        nn.MaxPool2d(2)
+        nn.MaxPool2d(3, stride = 2, padding = 1)
     )
 
 class Transformer(nn.Module):

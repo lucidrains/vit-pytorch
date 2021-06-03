@@ -1,3 +1,4 @@
+from functools import partial
 import torch
 from torch import nn, einsum
 
@@ -9,24 +10,14 @@ from einops.layers.torch import Rearrange, Reduce
 def cast_tuple(val, depth):
     return val if isinstance(val, tuple) else ((val,) * depth)
 
+LayerNorm = partial(nn.InstanceNorm2d, affine = True)
+
 # classes
-
-class ChanNorm(nn.Module):
-    def __init__(self, dim, eps = 1e-5):
-        super().__init__()
-        self.eps = eps
-        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
-        self.b = nn.Parameter(torch.zeros(1, dim, 1, 1))
-
-    def forward(self, x):
-        std = torch.var(x, dim = 1, unbiased = False, keepdim = True).sqrt()
-        mean = torch.mean(x, dim = 1, keepdim = True)
-        return (x - mean) / (std + self.eps) * self.g + self.b
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
         super().__init__()
-        self.norm = ChanNorm(dim)
+        self.norm = LayerNorm(dim)
         self.fn = fn
 
     def forward(self, x, **kwargs):
@@ -78,7 +69,7 @@ class Attention(nn.Module):
 def Aggregate(dim, dim_out):
     return nn.Sequential(
         nn.Conv2d(dim, dim_out, 3, padding = 1),
-        ChanNorm(dim_out),
+        LayerNorm(dim_out),
         nn.MaxPool2d(3, stride = 2, padding = 1)
     )
 
@@ -157,7 +148,7 @@ class NesT(nn.Module):
             ]))
 
         self.mlp_head = nn.Sequential(
-            ChanNorm(dim),
+            LayerNorm(dim),
             Reduce('b c h w -> b c', 'mean'),
             nn.Linear(dim, num_classes)
         )

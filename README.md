@@ -437,7 +437,7 @@ mpp_trainer = MPP(
 opt = torch.optim.Adam(mpp_trainer.parameters(), lr=3e-4)
 
 def sample_unlabelled_images():
-    return torch.randn(20, 3, 256, 256)
+    return torch.FloatTensor(20, 3, 256, 256).uniform_(0., 1.)
 
 for _ in range(100):
     images = sample_unlabelled_images()

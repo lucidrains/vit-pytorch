@@ -119,7 +119,8 @@ type(v) # <class 'vit_pytorch.vit_pytorch.ViT'>
 ```
 ## CCT
 <img src="https://raw.githubusercontent.com/SHI-Labs/Compact-Transformers/main/images/model_sym.png" width="400px"></img>
-<a hred="https://arxiv.org/abs/2104.05704">CCT</a> proposes compact transformers
+
+<a href="https://arxiv.org/abs/2104.05704">CCT</a> proposes compact transformers
 by using convolutions instead of patching and performing sequence pooling. This
 allows for CCT to have high accuracy and a low number of parameters.
 

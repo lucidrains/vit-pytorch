@@ -117,6 +117,69 @@ You can also use the handy `.to_vit` method on the `DistillableViT` instance to 
 v = v.to_vit()
 type(v) # <class 'vit_pytorch.vit_pytorch.ViT'>
 ```
+## CCT
+<img src="https://raw.githubusercontent.com/SHI-Labs/Compact-Transformers/main/images/model_sym.png" width="400px"></img>
+<a hred="https://arxiv.org/abs/2104.05704">CCT</a> proposes compact transformers
+by using convolutions instead of patching and performing sequence pooling. This
+allows for CCT to have high accuracy and a low number of parameters.
+
+You can use this with two methods
+```python
+import torch
+from vit_pytorch.cct import CCT
+
+model = CCT(
+        img_size=224,
+        embedding_dim=768,
+        n_input_channels=3,
+        n_conv_layers=1,
+        kernel_size=7,
+        stride=2,
+        padding=3,
+        pooling_kernel_size=3,
+        pooling_stride=2,
+        pooling_padding=1,
+        num_layers=12,
+        num_heads=12,
+        mlp_radio=4.,
+        num_classes=1000,
+        dropout_rate=0.1,
+        attention_dropout=0.1,
+        stochastic_depth_rate=0.1,
+        positional_embedding='sine', # ['sine', 'learnable', 'none']
+        sequence_length=None,        
+        )
+```
+
+Alternatively you can use one of several pre-defined models `[2,4,6,7,8,14,16]`
+which pre-define the number of layers, number of attention heads, the mlp ratio,
+and the embedding dimension.
+
+```python
+import torch
+from vit_pytorch.cct import cct_2
+
+model = cct_2(
+        img_size=224,
+        n_input_channels=3,
+        n_conv_layers=1,
+        kernel_size=7,
+        stride=2,
+        padding=3,
+        pooling_kernel_size=3,
+        pooling_stride=2,
+        pooling_padding=1,
+        num_classes=1000,
+        dropout_rate=0.1,
+        attention_dropout=0.1,
+        stochastic_depth_rate=0.1,
+        positional_embedding='sine', # ['sine', 'learnable', 'none']
+        sequence_length=None,        
+        )
+```
+<a href="https://github.com/SHI-Labs/Compact-Transformers">Official
+Repository</a>
+
 
 ## Deep ViT
 
@@ -680,6 +743,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 
 ## Citations
+```bibtex
+@article{hassani2021escaping,
+	title        = {Escaping the Big Data Paradigm with Compact Transformers},
+	author       = {Ali Hassani and Steven Walton and Nikhil Shah and Abulikemu Abuduweili and Jiachen Li and Humphrey Shi},
+	year         = 2021,
+	url          = {https://arxiv.org/abs/2104.05704},
+	eprint       = {2104.05704},
+	archiveprefix = {arXiv},
+	primaryclass = {cs.CV}
+}
+```
 
 ```bibtex
 @misc{dosovitskiy2020image,

@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # Pre-defined CCT Models
-__all__ = ['cct_2', 'cct_4', 'cct_6', 'cct_7', 'cct_8', 'cct_16']
+__all__ = ['cct_2', 'cct_4', 'cct_6', 'cct_7', 'cct_8', 'cct_14', 'cct_16']
+
 
 def cct_2(*args, **kwargs):
     return _cct(num_layers=2, num_heads=2, mlp_ratio=1, embedding_dim=128,
@@ -38,6 +39,7 @@ def cct_14(*args, **kwargs):
 def cct_16(*args, **kwargs):
     return _cct(num_layers=16, num_heads=6, mlp_ratio=3, embedding_dim=384,
                 *args, **kwargs)
+
 
 def _cct(num_layers, num_heads, mlp_ratio, embedding_dim,
          kernel_size=3, stride=None, padding=None,
@@ -80,6 +82,7 @@ class Attention(nn.Module):
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
+
 
 class TransformerEncoderLayer(nn.Module):
     """
@@ -142,6 +145,7 @@ class DropPath(nn.Module):
 
     def forward(self, x):
         return drop_path(x, self.drop_prob, self.training)
+
 
 class Tokenizer(nn.Module):
     def __init__(self,

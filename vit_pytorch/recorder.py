@@ -8,7 +8,7 @@ def find_modules(nn_module, type):
     return [module for module in nn_module.modules() if isinstance(module, type)]
 
 class Recorder(nn.Module):
-    def __init__(self, vit):
+    def __init__(self, vit, device = None):
         super().__init__()
         self.vit = vit
 
@@ -17,6 +17,7 @@ class Recorder(nn.Module):
         self.hooks = []
         self.hook_registered = False
         self.ejected = False
+        self.device = device
 
     def _hook(self, _, input, output):
         self.recordings.append(output.clone().detach())
@@ -45,10 +46,14 @@ class Recorder(nn.Module):
     def forward(self, img):
         assert not self.ejected, 'recorder has been ejected, cannot be used anymore'
         self.clear()
-
         if not self.hook_registered:
             self._register_hook()
 
         pred = self.vit(img)
-        attns = torch.stack(self.recordings, dim = 1)
+
+        # move all recordings to one device before stacking
+        target_device = self.device if self.device is not None else img.device
+        recordings = tuple(map(lambda t: t.to(target_device), self.recordings))
+
+        attns = torch.stack(recordings, dim = 1)
         return pred, attns

@@ -148,6 +148,6 @@ class DistillWrapper(nn.Module):
 
         else:
             teacher_labels = teacher_logits.argmax(dim = -1)
-            distill_loss = F.cross_entropy(student_logits, teacher_labels)
+            distill_loss = F.cross_entropy(distill_logits, teacher_labels)
 
         return loss * (1 - alpha) + distill_loss * alpha

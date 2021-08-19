@@ -29,7 +29,7 @@ class FeedForward(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Conv2d(dim, dim * mult, 1),
-            nn.GELU(),
+            nn.Hardswish(),
             nn.Dropout(dropout),
             nn.Conv2d(dim * mult, dim, 1),
             nn.Dropout(dropout)

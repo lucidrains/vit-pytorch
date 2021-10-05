@@ -19,7 +19,7 @@ class AxialRotaryEmbedding(nn.Module):
     def __init__(self, dim, max_freq = 10):
         super().__init__()
         self.dim = dim
-        scales = torch.logspace(0., log(max_freq / 2) / log(2), self.dim // 4, base = 2)
+        scales = torch.linspace(1., max_freq / 2, self.dim // 4)
         self.register_buffer('scales', scales)
 
     def forward(self, x):
@@ -154,10 +154,10 @@ class Attention(nn.Module):
         return self.to_out(out)
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, image_size, dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
         super().__init__()
         self.layers = nn.ModuleList([])
-        self.pos_emb = AxialRotaryEmbedding(dim_head)
+        self.pos_emb = AxialRotaryEmbedding(dim_head, max_freq = image_size)
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
                 PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_rotary = use_rotary, use_ds_conv = use_ds_conv)),
@@ -187,7 +187,7 @@ class RvT(nn.Module):
         )
 
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, use_rotary, use_ds_conv, use_glu)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, image_size, dropout, use_rotary, use_ds_conv, use_glu)
 
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),

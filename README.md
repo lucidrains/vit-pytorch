@@ -435,6 +435,33 @@ img = torch.randn(1, 3, 224, 224)
 pred = model(img) # (1, 1000)
 ```
 
+## RegionViT
+
+<img src="./images/regionvit.png" width="400px"></img>
+
+<img src="./images/regionvit2.png" width="400px"></img>
+
+<a href="https://arxiv.org/abs/2106.02689">This paper</a> proposes to divide up the feature map into local regions, whereby the local tokens attend to each other. Each local region has its own regional token which then attends to all its local tokens, as well as other regional tokens.
+
+You can use it as follows
+
+```python
+import torch
+from vit_pytorch.regionvit import RegionViT
+
+model = RegionViT(
+    dim = (64, 128, 256, 512),      # tuple of size 4, indicating dimension at each stage
+    depth = (2, 2, 8, 2),           # depth of the region to local transformer at each stage
+    window_size = 7,                # window size, which should be either 7 or 14
+    num_classes = 1000,             # number of output lcasses
+    tokenize_local_3_conv = False,  # whether to use a 3 layer convolution to encode the local tokens from the image. the paper uses this for the smaller models, but uses only 1 conv (set to False) for the larger models
+    use_peg = False,                # whether to use positional generating module. they used this for object detection for a boost in performance
+)
+
+x = torch.randn(1, 3, 224, 224)
+logits = model(x) # (1, 1000)
+```
+
 ## NesT
 
 <img src="./images/nest.png" width="400px"></img>
@@ -887,6 +914,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Zizhao Zhang and Han Zhang and Long Zhao and Ting Chen and Tomas Pfister},
     year    = {2021},
     eprint  = {2105.12723},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{chen2021regionvit,
+    title   = {RegionViT: Regional-to-Local Attention for Vision Transformers}, 
+    author  = {Chun-Fu Chen and Rameswar Panda and Quanfu Fan},
+    year    = {2021},
+    eprint  = {2106.02689},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

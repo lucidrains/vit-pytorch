@@ -458,8 +458,9 @@ model = RegionViT(
     use_peg = False,                # whether to use positional generating module. they used this for object detection for a boost in performance
 )
 
-x = torch.randn(1, 3, 224, 224)
-logits = model(x) # (1, 1000)
+img = torch.randn(1, 3, 224, 224)
+
+pred = model(img) # (1, 1000)
 ```
 
 ## NesT
@@ -485,6 +486,7 @@ nest = NesT(
 )
 
 img = torch.randn(1, 3, 224, 224)
+
 pred = nest(img) # (1, 1000)
 ```
 

@@ -157,16 +157,15 @@ class R2LTransformer(nn.Module):
             region_and_local_tokens = torch.cat((region_tokens, local_tokens), dim = 1)
             region_and_local_tokens = attn(region_and_local_tokens, rel_pos_bias = rel_pos_bias) + region_and_local_tokens
 
+            # feedforward
+
+            region_and_local_tokens = ff(region_and_local_tokens) + region_and_local_tokens
+
             # split back local and regional tokens
 
             region_tokens, local_tokens = region_and_local_tokens[:, :1], region_and_local_tokens[:, 1:]
             local_tokens = rearrange(local_tokens, '(b h w) (p1 p2) d -> b (h p1 w p2) d', h = lh // window_size_h, w = lw // window_size_w, p1 = window_size_h)
             region_tokens = rearrange(region_tokens, '(b n) () d -> b n d', n = rh * rw)
-
-            # feedforwards
-
-            local_tokens = ff(local_tokens) + local_tokens
-            region_tokens = ff(region_tokens) + region_tokens
 
         local_tokens = rearrange(local_tokens, 'b (h w) c -> b c h w', h = lh, w = lw)
         region_tokens = rearrange(region_tokens, 'b (h w) c -> b c h w', h = rh, w = rw)

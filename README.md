@@ -490,6 +490,45 @@ img = torch.randn(1, 3, 224, 224)
 pred = nest(img) # (1, 1000)
 ```
 
+## Masked Autoencoder
+
+<img src="./images/mae.png" width="400px"/>
+
+A new <a href="https://arxiv.org/abs/2111.06377">Kaiming He paper</a> proposes a simple autoencoder scheme where the vision transformer attends to a set of unmasked patches, and a smaller decoder tries to reconstruct the masked pixel values.
+
+You can use it with the following code
+
+```python
+import torch
+from vit_pytorch import ViT, MAE
+
+v = ViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048
+)
+
+mae = MAE(
+    encoder = v,
+    masking_ratio = 0.75,
+    decoder_dim = 1024,
+    decoder_depth = 6,
+    decoder_heads = 8
+)
+
+images = torch.randn(8, 3, 256, 256)
+
+loss = mae(images)
+loss.backward()
+
+# that's all!
+# do the above in a for loop many times with a lot of images and your vision transformer will learn
+```
+
 ## Masked Patch Prediction
 
 Thanks to <a href="https://github.com/zankner">Zach</a>, you can train using the original masked patch prediction task presented in the paper, with the following code.
@@ -938,6 +977,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Mathilde Caron and Hugo Touvron and Ishan Misra and Hervé Jégou and Julien Mairal and Piotr Bojanowski and Armand Joulin},
     year    = {2021},
     eprint  = {2104.14294},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{he2021masked,
+    title   = {Masked Autoencoders Are Scalable Vision Learners}, 
+    author  = {Kaiming He and Xinlei Chen and Saining Xie and Yanghao Li and Piotr Dollár and Ross Girshick},
+    year    = {2021},
+    eprint  = {2111.06377},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

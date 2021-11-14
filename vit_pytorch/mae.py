@@ -1,8 +1,7 @@
 import torch
-from math import ceil
 from torch import nn
 import torch.nn.functional as F
-from einops import rearrange, repeat
+from einops import repeat
 
 from vit_pytorch.vit import Transformer
 

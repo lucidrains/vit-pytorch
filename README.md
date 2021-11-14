@@ -453,7 +453,7 @@ model = RegionViT(
     dim = (64, 128, 256, 512),      # tuple of size 4, indicating dimension at each stage
     depth = (2, 2, 8, 2),           # depth of the region to local transformer at each stage
     window_size = 7,                # window size, which should be either 7 or 14
-    num_classes = 1000,             # number of output lcasses
+    num_classes = 1000,             # number of output classes
     tokenize_local_3_conv = False,  # whether to use a 3 layer convolution to encode the local tokens from the image. the paper uses this for the smaller models, but uses only 1 conv (set to False) for the larger models
     use_peg = False,                # whether to use positional generating module. they used this for object detection for a boost in performance
 )
@@ -495,6 +495,8 @@ pred = nest(img) # (1, 1000)
 <img src="./images/mae.png" width="400px"/>
 
 A new <a href="https://arxiv.org/abs/2111.06377">Kaiming He paper</a> proposes a simple autoencoder scheme where the vision transformer attends to a set of unmasked patches, and a smaller decoder tries to reconstruct the masked pixel values.
+
+<a href="https://www.youtube.com/watch?v=LKixq2S2Pz8">DeepReader quick paper review</a>
 
 You can use it with the following code
 
@@ -809,13 +811,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ## Citations
 ```bibtex
 @article{hassani2021escaping,
-	title        = {Escaping the Big Data Paradigm with Compact Transformers},
-	author       = {Ali Hassani and Steven Walton and Nikhil Shah and Abulikemu Abuduweili and Jiachen Li and Humphrey Shi},
-	year         = 2021,
-	url          = {https://arxiv.org/abs/2104.05704},
-	eprint       = {2104.05704},
-	archiveprefix = {arXiv},
-	primaryclass = {cs.CV}
+    title   = {Escaping the Big Data Paradigm with Compact Transformers},
+    author  = {Ali Hassani and Steven Walton and Nikhil Shah and Abulikemu Abuduweili and Jiachen Li and Humphrey Shi},
+    year    = 2021,
+    url     = {https://arxiv.org/abs/2104.05704},
+    eprint  = {2104.05704},
+    archiveprefix = {arXiv},
+    primaryclass = {cs.CV}
 }
 ```
 
@@ -843,10 +845,10 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{yuan2021tokenstotoken,
-    title     = {Tokens-to-Token ViT: Training Vision Transformers from Scratch on ImageNet},
-    author    = {Li Yuan and Yunpeng Chen and Tao Wang and Weihao Yu and Yujun Shi and Francis EH Tay and Jiashi Feng and Shuicheng Yan},
-    year      = {2021},
-    eprint    = {2101.11986},
+    title   = {Tokens-to-Token ViT: Training Vision Transformers from Scratch on ImageNet},
+    author  = {Li Yuan and Yunpeng Chen and Tao Wang and Weihao Yu and Yujun Shi and Francis EH Tay and Jiashi Feng and Shuicheng Yan},
+    year    = {2021},
+    eprint  = {2101.11986},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

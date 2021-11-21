@@ -19,6 +19,7 @@
 - [RegionViT](#regionvit)
 - [NesT](#nest)
 - [Masked Autoencoder](#masked-autoencoder)
+- [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
 - [Dino](#dino)
 - [Accessing Attention](#accessing-attention)
@@ -518,6 +519,46 @@ img = torch.randn(1, 3, 224, 224)
 
 pred = nest(img) # (1, 1000)
 ```
+
+## Simple Masked Image Modeling
+
+<img src="./images/simmim.png" width="400px"/>
+
+This <a href="https://arxiv.org/abs/2111.09886">paper</a> proposes a simple masked image modeling (SimMIM) scheme, using only a linear projection off the masked tokens into pixel space followed by an L1 loss with the pixel values of the masked patches. Results are competitive with other more complicated approaches.
+
+You can use this as follows
+
+```python
+import torch
+from vit_pytorch import ViT
+from vit_pytorch.simmim import SimMIM
+
+v = ViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048
+)
+
+mim = SimMIM(
+    encoder = v,
+    masking_ratio = 0.5  # they found 50% to yield the best results
+)
+
+images = torch.randn(8, 3, 256, 256)
+
+loss = mim(images)
+loss.backward()
+
+# that's all!
+# do the above in a for loop many times with a lot of images and your vision transformer will learn
+
+torch.save(v.state_dict(), './trained-vit.pt')
+```
+
 
 ## Masked Autoencoder
 
@@ -1021,6 +1062,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Kaiming He and Xinlei Chen and Saining Xie and Yanghao Li and Piotr Dollár and Ross Girshick},
     year    = {2021},
     eprint  = {2111.06377},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{xie2021simmim,
+    title   = {SimMIM: A Simple Framework for Masked Image Modeling}, 
+    author  = {Zhenda Xie and Zheng Zhang and Yue Cao and Yutong Lin and Jianmin Bao and Zhuliang Yao and Qi Dai and Han Hu},
+    year    = {2021},
+    eprint  = {2111.09886},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

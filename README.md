@@ -497,6 +497,8 @@ pred = model(img) # (1, 1000)
 
 <img src="./images/crossformer.png" width="400px"></img>
 
+<img src="./images/crossformer2.png" width="400px"></img>
+
 This <a href="https://arxiv.org/abs/2108.00154">paper</a> beats PVT and Swin using alternating local and global attention. The global attention is done across the windowing dimension for reduced complexity, much like the scheme used for axial attention.
 
 They also have cross-scale embedding layer, which they shown to be a generic layer that can improve all vision transformers. Dynamic relative positional bias was also formulated to allow the net to generalize to images of greater resolution.

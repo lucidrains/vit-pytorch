@@ -493,6 +493,14 @@ img = torch.randn(1, 3, 224, 224)
 pred = model(img) # (1, 1000)
 ```
 
+## CrossFormer (wip)
+
+<img src="./images/crossformer.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2108.00154">paper</a> beats PVT and Swin using alternating local and global attention. The global attention is done across the windowing dimension for reduced complexity, much like the scheme used for axial attention.
+
+They also have cross-scale embedding layer, which they shown to be a generic layer that can improve all vision transformers. Dynamic relative positional bias was also formulated to allow the net to generalize to images of greater resolution.
+
 ## NesT
 
 <img src="./images/nest.png" width="400px"></img>
@@ -1040,6 +1048,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Chun-Fu Chen and Rameswar Panda and Quanfu Fan},
     year    = {2021},
     eprint  = {2106.02689},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{wang2021crossformer,
+    title   = {CrossFormer: A Versatile Vision Transformer Hinging on Cross-scale Attention}, 
+    author  = {Wenxiao Wang and Lu Yao and Long Chen and Binbin Lin and Deng Cai and Xiaofei He and Wei Liu},
+    year    = {2021},
+    eprint  = {2108.00154},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

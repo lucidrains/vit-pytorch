@@ -247,11 +247,7 @@ class RegionViT(nn.Module):
             nn.Linear(last_dim, num_classes)
         )
 
-    def forward(
-        self,
-        x,
-        return_local_tokens = False
-    ):
+    def forward(self, x):
         *_, h, w = x.shape
         assert divisible_by(h, self.region_patch_size) and divisible_by(w, self.region_patch_size), 'height and width must be divisible by region patch size'
         assert divisible_by(h, self.local_patch_size) and divisible_by(w, self.local_patch_size), 'height and width must be divisible by local patch size'

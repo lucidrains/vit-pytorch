@@ -6,17 +6,8 @@ import torch.nn.functional as F
 
 # helpers
 
-def exists(val):
-    return val is not None
-
-def default(val, d):
-    return val if exists(val) else d
-
 def cast_tuple(val, length = 1):
     return val if isinstance(val, tuple) else ((val,) * length)
-
-def divisible_by(val, d):
-    return (val % d) == 0
 
 # cross embed layer
 

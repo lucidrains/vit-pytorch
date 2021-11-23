@@ -16,6 +16,7 @@
 - [LeViT](#levit)
 - [CvT](#cvt)
 - [Twins SVT](#twins-svt)
+- [CrossFormer](#crossformer)
 - [RegionViT](#regionvit)
 - [NesT](#nest)
 - [Masked Autoencoder](#masked-autoencoder)
@@ -493,7 +494,7 @@ img = torch.randn(1, 3, 224, 224)
 pred = model(img) # (1, 1000)
 ```
 
-## CrossFormer (wip)
+## CrossFormer
 
 <img src="./images/crossformer.png" width="400px"></img>
 

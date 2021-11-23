@@ -503,6 +503,23 @@ This <a href="https://arxiv.org/abs/2108.00154">paper</a> beats PVT and Swin usi
 
 They also have cross-scale embedding layer, which they shown to be a generic layer that can improve all vision transformers. Dynamic relative positional bias was also formulated to allow the net to generalize to images of greater resolution.
 
+```python
+import torch
+from vit_pytorch.crossformer import CrossFormer
+
+model = CrossFormer(
+    num_classes = 1000,                # number of output classes
+    dim = (64, 128, 256, 512),         # dimension at each stage
+    depth = (2, 2, 8, 2),              # depth of transformer at each stage
+    global_window_size = (8, 4, 2, 1), # global window sizes at each stage
+    local_window_size = 7,             # local window size (can be customized for each stage, but in paper, held constant at 7 for all stages)
+)
+
+img = torch.randn(1, 3, 224, 224)
+
+pred = model(img) # (1, 1000)
+```
+
 ## NesT
 
 <img src="./images/nest.png" width="400px"></img>

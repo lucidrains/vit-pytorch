@@ -44,6 +44,23 @@ class CrossEmbedLayer(nn.Module):
         fmaps = tuple(map(lambda conv: conv(x), self.convs))
         return torch.cat(fmaps, dim = 1)
 
+# dynamic positional bias
+
+def DynamicPositionBias(dim):
+    return nn.Sequential(
+        nn.Linear(2, dim),
+        nn.LayerNorm(dim),
+        nn.ReLU(),
+        nn.Linear(dim, dim),
+        nn.LayerNorm(dim),
+        nn.ReLU(),
+        nn.Linear(dim, dim),
+        nn.LayerNorm(dim),
+        nn.ReLU(),
+        nn.Linear(dim, 1),
+        Rearrange('... () -> ...')
+    )
+
 # transformer classes
 
 class LayerNorm(nn.Module):
@@ -86,12 +103,14 @@ class Attention(nn.Module):
         self.attn_type = attn_type
         self.window_size = window_size
 
+        self.dpb = DynamicPositionBias(dim // 4)
+
         self.norm = LayerNorm(dim)
         self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
         self.to_out = nn.Conv2d(inner_dim, dim, 1)
 
     def forward(self, x):
-        *_, height, width, heads, wsz = *x.shape, self.heads, self.window_size
+        *_, height, width, heads, wsz, device = *x.shape, self.heads, self.window_size, x.device
 
         # prenorm
 
@@ -114,6 +133,17 @@ class Attention(nn.Module):
         q = q * self.scale
 
         sim = einsum('b h i d, b h j d -> b h i j', q, k)
+
+        # add dynamic positional bias
+
+        i_pos = torch.arange(wsz, device = device)
+        j_pos = torch.arange(wsz, device = device)
+        grid = torch.stack(torch.meshgrid(i_pos, j_pos))
+        grid = rearrange(grid, 'c i j -> (i j) c')
+        rel_ij = grid[:, None] - grid[None, :]
+        rel_pos_bias = self.dpb(rel_ij.float())
+
+        sim = sim + rel_pos_bias
 
         # attend
 
@@ -212,7 +242,7 @@ class CrossFormer(nn.Module):
         for (dim_in, dim_out), layers, global_wsz, local_wsz, cel_kernel_sizes, cel_stride in zip(dim_in_and_out, depth, global_window_size, local_window_size, cross_embed_kernel_sizes, cross_embed_strides):
             self.layers.append(nn.ModuleList([
                 CrossEmbedLayer(dim_in, dim_out, cel_kernel_sizes, stride = cel_stride),
-                Transformer(dim_out, local_window_size = local_wsz, global_window_size = global_wsz, depth = layers)
+                Transformer(dim_out, local_window_size = local_wsz, global_window_size = global_wsz, depth = layers, attn_dropout = attn_dropout, ff_dropout = ff_dropout)
             ]))
 
         # final logits

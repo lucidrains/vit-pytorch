@@ -596,6 +596,8 @@ A new <a href="https://arxiv.org/abs/2111.06377">Kaiming He paper</a> proposes a
 
 <a href="https://www.youtube.com/watch?v=LKixq2S2Pz8">DeepReader quick paper review</a>
 
+<a href="https://www.youtube.com/watch?v=Dp6iICL2dVI">AI Coffeebreak with Letitia</a>
+
 You can use it with the following code
 
 ```python

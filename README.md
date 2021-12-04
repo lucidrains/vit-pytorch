@@ -679,6 +679,39 @@ for _ in range(100):
 torch.save(model.state_dict(), './pretrained-net.pt')
 ```
 
+## Adaptive Token Sampling
+
+<img src="./images/ats.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2111.15667">paper</a> proposes to use the CLS attention scores, re-weighed by the norms of the value heads, as means to discard unimportant tokens at different layers.
+
+```python
+import torch
+from vit_pytorch.ats_vit import ViT
+
+v = ViT(
+    image_size = 256,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    max_tokens_per_depth = (256, 128, 64, 32, 16, 8), # a tuple that denotes the maximum number of tokens that any given layer should have. if the layer has greater than this amount, it will undergo adaptive token sampling
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(4, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
+
+# you can also get a list of the final sampled patch ids
+# a value of -1 denotes padding
+
+preds, token_ids = v(img, return_sampled_token_ids = True) # (1, 1000), (1, <=8)
+```
+
 ## Dino
 
 <img src="./images/dino.png" width="350px"></img>
@@ -1114,6 +1147,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Zhenda Xie and Zheng Zhang and Yue Cao and Yutong Lin and Jianmin Bao and Zhuliang Yao and Qi Dai and Han Hu},
     year    = {2021},
     eprint  = {2111.09886},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{fayyaz2021ats,
+    title   = {ATS: Adaptive Token Sampling For Efficient Vision Transformers},
+    author  = {Mohsen Fayyaz and Soroush Abbasi Kouhpayegani and Farnoush Rezaei Jafari and Eric Sommerlade and Hamid Reza Vaezi Joze and Hamed Pirsiavash and Juergen Gall},
+    year    = {2021},
+    eprint  = {2111.15667},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

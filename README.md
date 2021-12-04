@@ -22,6 +22,7 @@
 - [Masked Autoencoder](#masked-autoencoder)
 - [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
+- [Adaptive Token Sampling](#adaptive-token-sampling)
 - [Dino](#dino)
 - [Accessing Attention](#accessing-attention)
 - [Research Ideas](#research-ideas)

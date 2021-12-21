@@ -554,17 +554,17 @@ pred = nest(img) # (1, 1000)
 
 <img src="./images/mbvit.png" width="400px"></img>
 
-This <a href="https://arxiv.org/abs/2110.02178">paper</a> introduce MobileViT, a light-weight and generalpurpose vision transformer for mobile devices. MobileViT presents a different
+This <a href="https://arxiv.org/abs/2110.02178">paper</a> introduce MobileViT, a light-weight and general purpose vision transformer for mobile devices. MobileViT presents a different
 perspective for the global processing of information with transformers.
 
 You can use it with the following code (ex. mobilevit_xs)
 
-```
+```python
 import torch
 from vit_pytorch.mobile_vit import MobileViT
 
 mbvit_xs = MobileViT(
-    image_size=(256, 256),
+    image_size = (256, 256),
     dims = [96, 120, 144],
     channels = [16, 32, 48, 48, 64, 64, 80, 80, 96, 96, 384],
     num_classes = 1000
@@ -1185,6 +1185,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Mohsen Fayyaz and Soroush Abbasi Kouhpayegani and Farnoush Rezaei Jafari and Eric Sommerlade and Hamid Reza Vaezi Joze and Hamed Pirsiavash and Juergen Gall},
     year    = {2021},
     eprint  = {2111.15667},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{mehta2021mobilevit,
+    title   = {MobileViT: Light-weight, General-purpose, and Mobile-friendly Vision Transformer},
+    author  = {Sachin Mehta and Mohammad Rastegari},
+    year    = {2021},
+    eprint  = {2110.02178},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

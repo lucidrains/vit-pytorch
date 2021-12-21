@@ -834,6 +834,41 @@ to cleanup the class and the hooks once you have collected enough data
 v = v.eject()  # wrapper is discarded and original ViT instance is returned
 ```
 
+## Accessing Embeddings
+
+You can similarly access the embeddings with the `Extractor` wrapper
+
+```python
+import torch
+from vit_pytorch.vit import ViT
+
+v = ViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+# import Recorder and wrap the ViT
+
+from vit_pytorch.extractor import Extractor
+v = Extractor(v)
+
+# forward pass now returns predictions and the attention maps
+
+img = torch.randn(1, 3, 256, 256)
+logits, embeddings = v(img)
+
+# there is one extra token due to the CLS token
+
+embeddings # (1, 65, 1024) - (batch x patches x model dim)
+```
+
 ## Research Ideas
 
 ### Efficient Attention

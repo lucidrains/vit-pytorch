@@ -19,6 +19,7 @@
 - [CrossFormer](#crossformer)
 - [RegionViT](#regionvit)
 - [NesT](#nest)
+- [MobileViT](#mobilevit)
 - [Masked Autoencoder](#masked-autoencoder)
 - [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
@@ -547,6 +548,31 @@ nest = NesT(
 img = torch.randn(1, 3, 224, 224)
 
 pred = nest(img) # (1, 1000)
+```
+
+## MobileViT
+
+<img src="./images/mbvit.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2110.02178">paper</a> introduce MobileViT, a light-weight and generalpurpose vision transformer for mobile devices. MobileViT presents a different
+perspective for the global processing of information with transformers.
+
+You can use it with the following code (ex. mobilevit_xs)
+
+```
+import torch
+from vit_pytorch.mobile_vit import MobileViT
+
+mbvit_xs = MobileViT(
+    image_size=(256, 256),
+    dims = [96, 120, 144],
+    channels = [16, 32, 48, 48, 64, 64, 80, 80, 96, 96, 384],
+    num_classes = 1000
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+pred = mbvit_xs(img) # (1, 1000)
 ```
 
 ## Simple Masked Image Modeling

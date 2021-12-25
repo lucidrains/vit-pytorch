@@ -5,7 +5,13 @@ def exists(val):
     return val is not None
 
 class Extractor(nn.Module):
-    def __init__(self, vit, device = None):
+    def __init__(
+        self,
+        vit,
+        device = None,
+        layer_name = 'transformer',
+        return_embeddings_only = False
+    ):
         super().__init__()
         self.vit = vit
 
@@ -16,11 +22,16 @@ class Extractor(nn.Module):
         self.ejected = False
         self.device = device
 
+        self.layer_name = layer_name
+        self.return_embeddings_only = return_embeddings_only
+
     def _hook(self, _, input, output):
         self.latents = output.clone().detach()
 
     def _register_hook(self):
-        handle = self.vit.transformer.register_forward_hook(self._hook)
+        assert hasattr(self.vit, self.layer_name), 'layer whose output to take as embedding not found in vision transformer'
+        layer = getattr(self.vit, self.layer_name)
+        handle = layer.register_forward_hook(self._hook)
         self.hooks.append(handle)
         self.hook_registered = True
 
@@ -35,7 +46,11 @@ class Extractor(nn.Module):
         del self.latents
         self.latents = None
 
-    def forward(self, img):
+    def forward(
+        self,
+        img,
+        return_embeddings_only = False
+    ):
         assert not self.ejected, 'extractor has been ejected, cannot be used anymore'
         self.clear()
         if not self.hook_registered:
@@ -45,4 +60,8 @@ class Extractor(nn.Module):
 
         target_device = self.device if exists(self.device) else img.device
         latents = self.latents.to(target_device)
+
+        if return_embeddings_only or self.return_embeddings_only:
+            return latents
+
         return pred, latents

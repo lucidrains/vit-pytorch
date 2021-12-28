@@ -10,6 +10,7 @@ class Extractor(nn.Module):
         vit,
         device = None,
         layer_name = 'transformer',
+        layer_save_input = False,
         return_embeddings_only = False
     ):
         super().__init__()
@@ -23,10 +24,12 @@ class Extractor(nn.Module):
         self.device = device
 
         self.layer_name = layer_name
+        self.layer_save_input = layer_save_input # whether to save input or output of layer
         self.return_embeddings_only = return_embeddings_only
 
-    def _hook(self, _, input, output):
-        self.latents = output.clone().detach()
+    def _hook(self, _, inputs, output):
+        tensor_to_save = inputs if self.layer_save_input else output
+        self.latents = tensor_to_save.clone().detach()
 
     def _register_hook(self):
         assert hasattr(self.vit, self.layer_name), 'layer whose output to take as embedding not found in vision transformer'

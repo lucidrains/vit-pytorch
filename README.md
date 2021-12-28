@@ -24,6 +24,7 @@
 - [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
 - [Adaptive Token Sampling](#adaptive-token-sampling)
+- [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
 - [Dino](#dino)
 - [Accessing Attention](#accessing-attention)
 - [Research Ideas](#research-ideas)
@@ -739,6 +740,52 @@ preds = v(img) # (1, 1000)
 preds, token_ids = v(img, return_sampled_token_ids = True) # (1, 1000), (1, <=8)
 ```
 
+## Vision Transformer for Small Datasets
+
+<img src="./images/vit_for_small_datasets.png" width="400px"></img>
+
+This paper proposes a new image to patch function that incorporates shifts of the image, before normalizing and dividing the image into patches. I have found shifting to be extremely helpful in some other transformers work, so decided to include this for further explorations. It also includes the `LRA` with the learned temperature and masking out of token attention to itself.
+
+You can use as follows:
+
+```python
+import torch
+from vit_pytorch.vit_for_small_dataset import ViT
+
+v = ViT(
+    image_size = 256,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(4, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
+```
+
+You can also use the `SPT` from this paper as a standalone module
+
+```python
+import torch
+from vit_pytorch.vit_for_small_dataset import SPT
+
+spt = SPT(
+    dim = 1024,
+    patch_size = 16,
+    channels = 3
+)
+
+img = torch.randn(4, 3, 256, 256)
+
+tokens = spt(img) # (4, 256, 1024)
+```
+
 ## Dino
 
 <img src="./images/dino.png" width="350px"></img>
@@ -1231,6 +1278,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Sachin Mehta and Mohammad Rastegari},
     year    = {2021},
     eprint  = {2110.02178},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{lee2021vision,
+    title   = {Vision Transformer for Small-Size Datasets}, 
+    author  = {Seung Hoon Lee and Seunghyun Lee and Byung Cheol Song},
+    year    = {2021},
+    eprint  = {2112.13492},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

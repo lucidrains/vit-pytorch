@@ -744,7 +744,7 @@ preds, token_ids = v(img, return_sampled_token_ids = True) # (1, 1000), (1, <=8)
 
 <img src="./images/vit_for_small_datasets.png" width="400px"></img>
 
-This paper proposes a new image to patch function that incorporates shifts of the image, before normalizing and dividing the image into patches. I have found shifting to be extremely helpful in some other transformers work, so decided to include this for further explorations. It also includes the `LRA` with the learned temperature and masking out of token attention to itself.
+This <a href="https://arxiv.org/abs/2112.13492">paper</a> proposes a new image to patch function that incorporates shifts of the image, before normalizing and dividing the image into patches. I have found shifting to be extremely helpful in some other transformers work, so decided to include this for further explorations. It also includes the `LSA` with the learned temperature and masking out of a token's attention to itself.
 
 You can use as follows:
 

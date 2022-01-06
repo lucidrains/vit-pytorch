@@ -14,13 +14,11 @@ class MAE(nn.Module):
         masking_ratio = 0.75,
         decoder_depth = 1,
         decoder_heads = 8,
-        decoder_dim_head = 64,
-        apply_decoder_pos_emb_all = False # whether to (re)apply decoder positional embedding to encoder unmasked tokens
+        decoder_dim_head = 64
     ):
         super().__init__()
         assert masking_ratio > 0 and masking_ratio < 1, 'masking ratio must be kept between 0 and 1'
         self.masking_ratio = masking_ratio
-        self.apply_decoder_pos_emb_all = apply_decoder_pos_emb_all
 
         # extract some hyperparameters and functions from encoder (vision transformer to be trained)
 
@@ -73,10 +71,9 @@ class MAE(nn.Module):
 
         decoder_tokens = self.enc_to_dec(encoded_tokens)
 
-        # reapply decoder position embedding to unmasked tokens, if desired
+        # reapply decoder position embedding to unmasked tokens
 
-        if self.apply_decoder_pos_emb_all:
-            decoder_tokens = decoder_tokens + self.decoder_pos_emb(unmasked_indices)
+        decoder_tokens = decoder_tokens + self.decoder_pos_emb(unmasked_indices)
 
         # repeat mask tokens for number of masked, and add the positions using the masked indices derived above
 

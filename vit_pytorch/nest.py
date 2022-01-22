@@ -131,10 +131,11 @@ class NesT(nn.Module):
 
         seq_len = (fmap_size // blocks) ** 2   # sequence length is held constant across heirarchy
         hierarchies = list(reversed(range(num_hierarchies)))
-        mults = [2 ** i for i in hierarchies]
+        mults = [2 ** i for i in reversed(hierarchies)]
 
         layer_heads = list(map(lambda t: t * heads, mults))
         layer_dims = list(map(lambda t: t * dim, mults))
+        last_dim = layer_dims[-1]
 
         layer_dims = [*layer_dims, layer_dims[-1]]
         dim_pairs = zip(layer_dims[:-1], layer_dims[1:])
@@ -157,10 +158,11 @@ class NesT(nn.Module):
                 Aggregate(dim_in, dim_out) if not is_last else nn.Identity()
             ]))
 
+
         self.mlp_head = nn.Sequential(
-            LayerNorm(dim),
+            LayerNorm(last_dim),
             Reduce('b c h w -> b c', 'mean'),
-            nn.Linear(dim, num_classes)
+            nn.Linear(last_dim, num_classes)
         )
 
     def forward(self, img):

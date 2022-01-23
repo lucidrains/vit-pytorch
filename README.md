@@ -542,7 +542,7 @@ nest = NesT(
     dim = 96,
     heads = 3,
     num_hierarchies = 3,        # number of hierarchies
-    block_repeats = (8, 4, 1),  # the number of transformer blocks at each heirarchy, starting from the bottom
+    block_repeats = (2, 2, 8),  # the number of transformer blocks at each heirarchy, starting from the bottom
     num_classes = 1000
 )
 

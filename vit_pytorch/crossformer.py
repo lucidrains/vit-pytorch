@@ -62,9 +62,9 @@ class LayerNorm(nn.Module):
         self.b = nn.Parameter(torch.zeros(1, dim, 1, 1))
 
     def forward(self, x):
-        std = torch.var(x, dim = 1, unbiased = False, keepdim = True).sqrt()
+        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
         mean = torch.mean(x, dim = 1, keepdim = True)
-        return (x - mean) / (std + self.eps) * self.g + self.b
+        return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
 def FeedForward(dim, mult = 4, dropout = 0.):
     return nn.Sequential(

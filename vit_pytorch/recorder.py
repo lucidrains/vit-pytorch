@@ -55,5 +55,5 @@ class Recorder(nn.Module):
         target_device = self.device if self.device is not None else img.device
         recordings = tuple(map(lambda t: t.to(target_device), self.recordings))
 
-        attns = torch.stack(recordings, dim = 1)
+        attns = torch.stack(recordings, dim = 1) if len(recordings) > 0 else None
         return pred, attns

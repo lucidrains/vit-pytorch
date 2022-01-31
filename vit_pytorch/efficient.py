@@ -3,12 +3,16 @@ from torch import nn
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
+def pair(t):
+    return t if isinstance(t, tuple) else (t, t)
+
 class ViT(nn.Module):
     def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
         super().__init__()
-        assert image_size % patch_size == 0, 'image dimensions must be divisible by the patch size'
+        image_size_h, image_size_w = pair(image_size)
+        assert image_size_h % patch_size == 0 and image_size_w % patch_size == 0, 'image dimensions must be divisible by the patch size'
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
-        num_patches = (image_size // patch_size) ** 2
+        num_patches = (image_size_h // patch_size) * (image_size_w // patch_size)
         patch_dim = channels * patch_size ** 2
 
         self.to_patch_embedding = nn.Sequential(

@@ -24,6 +24,7 @@
 - [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
 - [Adaptive Token Sampling](#adaptive-token-sampling)
+- [Patch Merger](#patch-merger)
 - [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
 - [Dino](#dino)
 - [Accessing Attention](#accessing-attention)
@@ -732,12 +733,58 @@ v = ViT(
 
 img = torch.randn(4, 3, 256, 256)
 
-preds = v(img) # (1, 1000)
+preds = v(img) # (4, 1000)
 
 # you can also get a list of the final sampled patch ids
 # a value of -1 denotes padding
 
-preds, token_ids = v(img, return_sampled_token_ids = True) # (1, 1000), (1, <=8)
+preds, token_ids = v(img, return_sampled_token_ids = True) # (4, 1000), (4, <=8)
+```
+
+## Patch Merger
+
+
+<img src="./images/patch_merger.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2202.12015">paper</a> proposes a simple module (Patch Merger) for reducing the number of tokens at any layer of a vision transformer without sacrificing performance.
+
+```python
+import torch
+from vit_pytorch.vit_with_patch_merger import ViT
+
+v = ViT(
+    image_size = 256,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 12,
+    heads = 8,
+    patch_merge_layer = 6,        # at which transformer layer to do patch merging
+    patch_merge_num_tokens = 8,   # the output number of tokens from the patch merge
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(4, 3, 256, 256)
+
+preds = v(img) # (4, 1000)
+```
+
+One can also use the `PatchMerger` module by itself
+
+```python
+import torch
+from vit_pytorch.vit_with_patch_merger import PatchMerger
+
+merger = PatchMerger(
+    dim = 1024,
+    num_tokens_out = 8   # output number of tokens
+)
+
+features = torch.randn(4, 256, 1024) # (batch, num tokens, dimension)
+
+out = merger(features) # (4, 8, 1024)
 ```
 
 ## Vision Transformer for Small Datasets
@@ -1289,6 +1336,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Seung Hoon Lee and Seunghyun Lee and Byung Cheol Song},
     year    = {2021},
     eprint  = {2112.13492},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{renggli2022learning,
+    title   = {Learning to Merge Tokens in Vision Transformers},
+    author  = {Cedric Renggli and André Susano Pinto and Neil Houlsby and Basil Mustafa and Joan Puigcerver and Carlos Riquelme},
+    year    = {2022},
+    eprint  = {2202.12015},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

@@ -27,6 +27,7 @@
 - [Adaptive Token Sampling](#adaptive-token-sampling)
 - [Patch Merger](#patch-merger)
 - [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
+- [Parallel ViT](#parallel-vit)
 - [Dino](#dino)
 - [Accessing Attention](#accessing-attention)
 - [Research Ideas](#research-ideas)
@@ -240,6 +241,7 @@ preds = v(img) # (1, 1000)
 ```
 
 ## CCT
+
 <img src="https://raw.githubusercontent.com/SHI-Labs/Compact-Transformers/main/images/model_sym.png" width="400px"></img>
 
 <a href="https://arxiv.org/abs/2104.05704">CCT</a> proposes compact transformers
@@ -866,6 +868,37 @@ img = torch.randn(4, 3, 256, 256)
 tokens = spt(img) # (4, 256, 1024)
 ```
 
+## Parallel ViT
+
+<img src="./images/parallel-vit.png" width="350px"></img>
+
+This <a href="https://arxiv.org/abs/2203.09795">paper</a> propose parallelizing multiple attention and feedforward blocks per layer (2 blocks), claiming that it is easier to train without loss of performance.
+
+You can try this variant as follows
+
+```python
+import torch
+from vit_pytorch.parallel_vit import ViT
+
+v = ViT(
+    image_size = 256,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048,
+    num_parallel_branches = 2,  # in paper, they claimed 2 was optimal
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(4, 3, 256, 256)
+
+preds = v(img) # (4, 1000)
+```
+
+
 ## Dino
 
 <img src="./images/dino.png" width="350px"></img>
@@ -1393,6 +1426,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
     eprint  = {2203.10790},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@inproceedings{Touvron2022ThreeTE,
+    title   = {Three things everyone should know about Vision Transformers},
+    author  = {Hugo Touvron and Matthieu Cord and Alaaeldin El-Nouby and Jakob Verbeek and Herv'e J'egou},
+    year    = {2022}
 }
 ```
 

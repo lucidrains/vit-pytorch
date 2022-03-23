@@ -18,6 +18,7 @@
 - [Twins SVT](#twins-svt)
 - [CrossFormer](#crossformer)
 - [RegionViT](#regionvit)
+- [ScalableViT](#scalablevit)
 - [NesT](#nest)
 - [MobileViT](#mobilevit)
 - [Masked Autoencoder](#masked-autoencoder)
@@ -523,6 +524,38 @@ model = CrossFormer(
 img = torch.randn(1, 3, 224, 224)
 
 pred = model(img) # (1, 1000)
+```
+
+## ScalableViT
+
+<img src="./images/scalable-vit-1.png" width="400px"></img>
+
+<img src="./images/scalable-vit-2.png" width="400px"></img>
+
+This Bytedance AI <a href="https://arxiv.org/abs/2203.10790">paper</a> proposes the Scalable Self Attention (SSA) and the Interactive Windowed Self Attention (IWSA) modules. The SSA alleviates the computation needed at earlier stages by reducing the key / value feature map by some factor (`reduction_factor`), while modulating the dimension of the queries and keys (`ssa_dim_key`). The IWSA performs self attention within local windows, similar to other vision transformer papers. However, they add a residual of the values, passed through a convolution of kernel size 3, which they named Local Interactive Module (LIM).
+
+They make the claim in this paper that this scheme outperforms Swin Transformer, and also demonstrate competitive performance against Crossformer.
+
+You can use it as follows (ex. ScalableViT-S)
+
+```python
+import torch
+from vit_pytorch.scalable_vit import ScalableViT
+
+model = ScalableViT(
+    num_classes = 1000,
+    dim = 64,                               # starting model dimension. at every stage, dimension is doubled
+    heads = (2, 4, 8, 16),                  # number of attention heads at each stage
+    depth = (2, 2, 20, 2),                  # number of transformer blocks at each stage
+    ssa_dim_key = (40, 40, 40, 32),         # the dimension of the attention keys (and queries) for SSA. in the paper, they represented this as a scale factor on the base dimension per key (ssa_dim_key / dim_key)
+    reduction_factor = (8, 4, 2, 1),        # downsampling of the key / values in SSA. in the paper, this was represented as (reduction_factor ** -2)
+    window_size = (64, 32, None, None),     # window size of the IWSA at each stage. None means no windowing needed
+    dropout = 0.1,                          # attention and feedforward dropout
+).cuda()
+
+img = torch.randn(1, 3, 256, 256).cuda()
+
+preds = model(img) # (1, 1000)
 ```
 
 ## NesT
@@ -1347,6 +1380,17 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Cedric Renggli and André Susano Pinto and Neil Houlsby and Basil Mustafa and Joan Puigcerver and Carlos Riquelme},
     year    = {2022},
     eprint  = {2202.12015},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{yang2022scalablevit,
+    title   = {ScalableViT: Rethinking the Context-oriented Generalization of Vision Transformer}, 
+    author  = {Rui Yang and Hailong Ma and Jie Wu and Yansong Tang and Xuefeng Xiao and Min Zheng and Xiu Li},
+    year    = {2022},
+    eprint  = {2203.10790},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
 }

@@ -253,22 +253,25 @@ You can use this with two methods
 import torch
 from vit_pytorch.cct import CCT
 
-model = CCT(
-        img_size=224,
-        embedding_dim=384,
-        n_conv_layers=2,
-        kernel_size=7,
-        stride=2,
-        padding=3,
-        pooling_kernel_size=3,
-        pooling_stride=2,
-        pooling_padding=1,
-        num_layers=14,
-        num_heads=6,
-        mlp_radio=3.,
-        num_classes=1000,
-        positional_embedding='learnable', # ['sine', 'learnable', 'none']
-        )
+cct = CCT(
+    img_size = (224, 448),
+    embedding_dim = 384,
+    n_conv_layers = 2,
+    kernel_size = 7,
+    stride = 2,
+    padding = 3,
+    pooling_kernel_size = 3,
+    pooling_stride = 2,
+    pooling_padding = 1,
+    num_layers = 14,
+    num_heads = 6,
+    mlp_radio = 3.,
+    num_classes = 1000,
+    positional_embedding = 'learnable', # ['sine', 'learnable', 'none']
+)
+
+img = torch.randn(1, 3, 224, 448)
+pred = cct(img) # (1, 1000)
 ```
 
 Alternatively you can use one of several pre-defined models `[2,4,6,7,8,14,16]`
@@ -279,22 +282,22 @@ and the embedding dimension.
 import torch
 from vit_pytorch.cct import cct_14
 
-model = cct_14(
-        img_size=224,
-        n_conv_layers=1,
-        kernel_size=7,
-        stride=2,
-        padding=3,
-        pooling_kernel_size=3,
-        pooling_stride=2,
-        pooling_padding=1,
-        num_classes=1000,
-        positional_embedding='learnable', # ['sine', 'learnable', 'none']  
-        )
+cct = cct_14(
+    img_size = 224,
+    n_conv_layers = 1,
+    kernel_size = 7,
+    stride = 2,
+    padding = 3,
+    pooling_kernel_size = 3,
+    pooling_stride = 2,
+    pooling_padding = 1,
+    num_classes = 1000,
+    positional_embedding = 'learnable', # ['sine', 'learnable', 'none']
+)
 ```
+
 <a href="https://github.com/SHI-Labs/Compact-Transformers">Official
 Repository</a> includes links to pretrained model checkpoints.
-
 
 ## Cross ViT
 

@@ -2,7 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# Pre-defined CCT Models
+# helpers
+
+def pair(t):
+    return t if isinstance(t, tuple) else (t, t)
+
+# CCT Models
+
 __all__ = ['cct_2', 'cct_4', 'cct_6', 'cct_7', 'cct_8', 'cct_14', 'cct_16']
 
 
@@ -55,8 +61,8 @@ def _cct(num_layers, num_heads, mlp_ratio, embedding_dim,
                padding=padding,
                *args, **kwargs)
 
+# modules
 
-# Modules
 class Attention(nn.Module):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
         super().__init__()
@@ -308,6 +314,7 @@ class CCT(nn.Module):
                  pooling_padding=1,
                  *args, **kwargs):
         super(CCT, self).__init__()
+        img_height, img_width = pair(img_size)
 
         self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
                                    n_output_channels=embedding_dim,
@@ -324,8 +331,8 @@ class CCT(nn.Module):
 
         self.classifier = TransformerClassifier(
             sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
-                                                           height=img_size,
-                                                           width=img_size),
+                                                           height=img_height,
+                                                           width=img_width),
             embedding_dim=embedding_dim,
             seq_pool=True,
             dropout_rate=0.,
@@ -336,4 +343,3 @@ class CCT(nn.Module):
     def forward(self, x):
         x = self.tokenizer(x)
         return self.classifier(x)
-

@@ -45,6 +45,8 @@ For a Pytorch implementation with pretrained models, please see Ross Wightman's 
 
 The official Jax repository is <a href="https://github.com/google-research/vision_transformer">here</a>.
 
+A tensorflow2 translation also exists <a href="https://github.com/taki0112/vit-tensorflow">here</a>, created by research scientist <a href="https://github.com/taki0112">Junho Kim</a>! 🙏
+
 ## Install
 
 ```bash

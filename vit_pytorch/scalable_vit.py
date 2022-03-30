@@ -90,6 +90,7 @@ class ScalableSelfAttention(nn.Module):
         self.heads = heads
         self.scale = dim_key ** -0.5
         self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
 
         self.to_q = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
         self.to_k = nn.Conv2d(dim, dim_key * heads, reduction_factor, stride = reduction_factor, bias = False)
@@ -116,6 +117,7 @@ class ScalableSelfAttention(nn.Module):
         # attention
 
         attn = self.attend(dots)
+        attn = self.dropout(attn)
 
         # aggregate values
 
@@ -141,6 +143,7 @@ class InteractiveWindowedSelfAttention(nn.Module):
         self.scale = dim_key ** -0.5
         self.window_size = window_size
         self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
 
         self.local_interactive_module = nn.Conv2d(dim_value * heads, dim_value * heads, 3, padding = 1)
 
@@ -176,6 +179,7 @@ class InteractiveWindowedSelfAttention(nn.Module):
         # attention
 
         attn = self.attend(dots)
+        attn = self.dropout(attn)
 
         # aggregate values
 

@@ -139,6 +139,8 @@ class Attention(nn.Module):
         self.scale = dim_head ** -0.5
 
         self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
+
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.output_num_tokens = output_num_tokens
@@ -163,6 +165,7 @@ class Attention(nn.Module):
             dots = dots.masked_fill(~dots_mask, mask_value)
 
         attn = self.attend(dots)
+        attn = self.dropout(attn)
 
         sampled_token_ids = None
 

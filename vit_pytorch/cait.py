@@ -76,6 +76,7 @@ class Attention(nn.Module):
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
         self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
 
         self.mix_heads_pre_attn = nn.Parameter(torch.randn(heads, heads))
         self.mix_heads_post_attn = nn.Parameter(torch.randn(heads, heads))
@@ -96,7 +97,10 @@ class Attention(nn.Module):
         dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
 
         dots = einsum('b h i j, h g -> b g i j', dots, self.mix_heads_pre_attn)    # talking heads, pre-softmax
+
         attn = self.attend(dots)
+        attn = self.dropout(attn)
+
         attn = einsum('b h i j, h g -> b g i j', attn, self.mix_heads_post_attn)   # talking heads, post-softmax
 
         out = einsum('b h i j, b h j d -> b h i d', attn, v)

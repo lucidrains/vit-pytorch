@@ -42,6 +42,8 @@ class LSA(nn.Module):
         self.temperature = nn.Parameter(torch.log(torch.tensor(dim_head ** -0.5)))
 
         self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
+
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = nn.Sequential(
@@ -60,6 +62,7 @@ class LSA(nn.Module):
         dots = dots.masked_fill(mask, mask_value)
 
         attn = self.attend(dots)
+        attn = self.dropout(attn)
 
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')

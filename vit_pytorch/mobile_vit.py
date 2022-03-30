@@ -54,6 +54,8 @@ class Attention(nn.Module):
         self.scale = dim_head ** -0.5
 
         self.attend = nn.Softmax(dim=-1)
+        self.dropout = nn.Dropout(dropout)
+
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
 
         self.to_out = nn.Sequential(
@@ -67,7 +69,10 @@ class Attention(nn.Module):
             t, 'b p n (h d) -> b p h n d', h=self.heads), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
         attn = self.attend(dots)
+        attn = self.dropout(attn)
+
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b p h n d -> b p n (h d)')
         return self.to_out(out)

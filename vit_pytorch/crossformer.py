@@ -95,6 +95,9 @@ class Attention(nn.Module):
         self.window_size = window_size
 
         self.norm = LayerNorm(dim)
+
+        self.dropout = nn.Dropout(dropout)
+
         self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
         self.to_out = nn.Conv2d(inner_dim, dim, 1)
 
@@ -151,6 +154,7 @@ class Attention(nn.Module):
         # attend
 
         attn = sim.softmax(dim = -1)
+        attn = self.dropout(attn)
 
         # merge heads
 

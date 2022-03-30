@@ -130,6 +130,8 @@ class GlobalAttention(nn.Module):
         self.to_q = nn.Conv2d(dim, inner_dim, 1, bias = False)
         self.to_kv = nn.Conv2d(dim, inner_dim * 2, k, stride = k, bias = False)
 
+        self.dropout = nn.Dropout(dropout)
+
         self.to_out = nn.Sequential(
             nn.Conv2d(inner_dim, dim, 1),
             nn.Dropout(dropout)
@@ -145,6 +147,7 @@ class GlobalAttention(nn.Module):
         dots = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
         attn = dots.softmax(dim = -1)
+        attn = self.dropout(attn)
 
         out = einsum('b i j, b j d -> b i d', attn, v)
         out = rearrange(out, '(b h) (x y) d -> b (h d) x y', h = h, y = y)

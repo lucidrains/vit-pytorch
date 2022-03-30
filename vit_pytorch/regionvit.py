@@ -61,8 +61,13 @@ class Attention(nn.Module):
         inner_dim = dim_head * heads
 
         self.norm = nn.LayerNorm(dim)
+        self.dropout = nn.Dropout(dropout)
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
-        self.to_out = nn.Linear(inner_dim, dim)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        )
 
     def forward(self, x, rel_pos_bias = None):
         h = self.heads
@@ -86,6 +91,7 @@ class Attention(nn.Module):
             sim = sim + rel_pos_bias
 
         attn = sim.softmax(dim = -1)
+        attn = self.dropout(attn)
 
         # merge heads
 

@@ -19,6 +19,7 @@
 - [CrossFormer](#crossformer)
 - [RegionViT](#regionvit)
 - [ScalableViT](#scalablevit)
+- [SepViT](#sepvit)
 - [NesT](#nest)
 - [MobileViT](#mobilevit)
 - [Masked Autoencoder](#masked-autoencoder)
@@ -564,6 +565,17 @@ model = ScalableViT(
 img = torch.randn(1, 3, 256, 256).cuda()
 
 preds = model(img) # (1, 1000)
+```
+
+## SepViT
+
+<img src="./images/sep-vit.png" width="400px"></img>
+
+Another <a href="https://arxiv.org/abs/2203.15380">Bytedance AI paper</a>, it proposes a depthwise-pointwise self-attention layer that seems largely inspired by mobilenet's depthwise-separable convolution. The most interesting aspect is the reuse of the feature map from the depthwise self-attention stage as the values for the pointwise self-attention, as shown in the diagram above.
+
+I have decided to include only the version of `SepViT` with this specific self-attention layer, as the grouped attention layers are not remarkable nor novel, and the authors were not clear on how they treated the window tokens for the group self-attention layer.
+
+```python
 ```
 
 ## NesT
@@ -1502,6 +1514,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
 @inproceedings{Sandler2022FinetuningIT,
     title   = {Fine-tuning Image Transformers using Learnable Memory},
     author  = {Mark Sandler and Andrey Zhmoginov and Max Vladymyrov and Andrew Jackson},
+    year    = {2022}
+}
+```
+
+```bibtex
+@inproceedings{Li2022SepViTSV,
+    title   = {SepViT: Separable Vision Transformer},
+    author  = {Wei Li and Xing Wang and Xin Xia and Jie Wu and Xuefeng Xiao and Minghang Zheng and Shiping Wen},
     year    = {2022}
 }
 ```

@@ -103,7 +103,7 @@ class DSSA(nn.Module):
             nn.LayerNorm(dim_head),
             nn.GELU(),
             Rearrange('b h n c -> b (h c) n'),
-            nn.Conv1d(inner_dim, inner_dim * 2, 1, groups = heads),
+            nn.Conv1d(inner_dim, inner_dim * 2, 1),
             Rearrange('b (h c) n -> b h n c', h = heads),
         )
 

@@ -253,8 +253,6 @@ class SepViT(nn.Module):
         dropout = 0.
     ):
         super().__init__()
-        self.to_patches = nn.Conv2d(channels, dim, 7, stride = 4, padding = 3)
-
         assert isinstance(depth, tuple), 'depth needs to be tuple if integers indicating number of transformer blocks at that stage'
 
         num_stages = len(depth)

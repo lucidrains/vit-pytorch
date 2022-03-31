@@ -560,9 +560,9 @@ model = ScalableViT(
     reduction_factor = (8, 4, 2, 1),        # downsampling of the key / values in SSA. in the paper, this was represented as (reduction_factor ** -2)
     window_size = (64, 32, None, None),     # window size of the IWSA at each stage. None means no windowing needed
     dropout = 0.1,                          # attention and feedforward dropout
-).cuda()
+)
 
-img = torch.randn(1, 3, 256, 256).cuda()
+img = torch.randn(1, 3, 256, 256)
 
 preds = model(img) # (1, 1000)
 ```
@@ -575,7 +575,25 @@ Another <a href="https://arxiv.org/abs/2203.15380">Bytedance AI paper</a>, it pr
 
 I have decided to include only the version of `SepViT` with this specific self-attention layer, as the grouped attention layers are not remarkable nor novel, and the authors were not clear on how they treated the window tokens for the group self-attention layer. Besides, it seems like with `DSSA` layer alone, they were able to beat Swin.
 
+ex. SepViT-Lite
+
 ```python
+import torch
+from vit_pytorch.sep_vit import SepViT
+
+v = SepViT(
+    num_classes = 1000,
+    dim = 32,               # dimensions of first stage, which doubles every stage (32, 64, 128, 256) for SepViT-Lite
+    dim_head = 32,          # attention head dimension
+    heads = (1, 2, 4, 8),   # number of heads per stage
+    depth = (1, 2, 6, 2),   # number of transformer blocks per stage
+    window_size = 7,        # window size of DSS Attention block
+    dropout = 0.1           # dropout
+)
+
+img = torch.randn(1, 3, 224, 224)
+
+preds = v(img) # (1, 1000)
 ```
 
 ## NesT

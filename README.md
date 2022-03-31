@@ -28,6 +28,7 @@
 - [Patch Merger](#patch-merger)
 - [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
 - [Parallel ViT](#parallel-vit)
+- [Learnable Memory ViT](#learnable-memory-vit)
 - [Dino](#dino)
 - [Accessing Attention](#accessing-attention)
 - [Research Ideas](#research-ideas)
@@ -903,6 +904,61 @@ img = torch.randn(4, 3, 256, 256)
 preds = v(img) # (4, 1000)
 ```
 
+## Learnable Memory ViT
+
+<img src="./images/learnable-memory-vit.png" width="350px"></img>
+
+This <a href="https://arxiv.org/abs/2203.15243">paper</a> shows that adding learnable memory tokens at each layer of a vision transformer can greatly enhance fine-tuning results (in addition to learnable task specific CLS token and adapter head).
+
+You can use this with a specially modified `ViT` as follows
+
+```python
+import torch
+from vit_pytorch.learnable_memory_vit import ViT, Adapter
+
+# normal base ViT
+
+v = ViT(
+    image_size = 256,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(4, 3, 256, 256)
+logits = v(img) # (4, 1000)
+
+# do your usual training with ViT
+# ...
+
+
+# then, to finetune, just pass the ViT into the Adapter class
+# you can do this for multiple Adapters, as shown below
+
+adapter1 = Adapter(
+    vit = v,
+    num_classes = 2,               # number of output classes for this specific task
+    num_memories_per_layer = 5     # number of learnable memories per layer, 10 was sufficient in paper
+)
+
+logits1 = adapter1(img) # (4, 2) - predict 2 classes off frozen ViT backbone with learnable memories and task specific head
+
+# yet another task to finetune on, this time with 4 classes
+
+adapter2 = Adapter(
+    vit = v,
+    num_classes = 4,
+    num_memories_per_layer = 10
+)
+
+logits2 = adapter2(img) # (4, 4) - predict 4 classes off frozen ViT backbone with learnable memories and task specific head
+
+```
 
 ## Dino
 
@@ -1438,6 +1494,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
 @inproceedings{Touvron2022ThreeTE,
     title   = {Three things everyone should know about Vision Transformers},
     author  = {Hugo Touvron and Matthieu Cord and Alaaeldin El-Nouby and Jakob Verbeek and Herv'e J'egou},
+    year    = {2022}
+}
+```
+
+```bibtex
+@inproceedings{Sandler2022FinetuningIT,
+    title   = {Fine-tuning Image Transformers using Learnable Memory},
+    author  = {Mark Sandler and Andrey Zhmoginov and Max Vladymyrov and Andrew Jackson},
     year    = {2022}
 }
 ```

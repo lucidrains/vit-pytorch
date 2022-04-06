@@ -601,7 +601,7 @@ preds = v(img) # (1, 1000)
 
 <img src="./images/max-vit.png" width="400px"></img>
 
-This paper proposes a hybrid convolutional / attention network, using MBConv from the convolution side, and then block / grid axial sparse attention.
+<a href="https://arxiv.org/abs/2204.01697">This paper</a> proposes a hybrid convolutional / attention network, using MBConv from the convolution side, and then block / grid axial sparse attention.
 
 They also claim this specific vision transformer is good for generative models (GANs).
 

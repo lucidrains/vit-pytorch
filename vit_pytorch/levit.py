@@ -71,8 +71,8 @@ class Attention(nn.Module):
         q_range = torch.arange(0, fmap_size, step = (2 if downsample else 1))
         k_range = torch.arange(fmap_size)
 
-        q_pos = torch.stack(torch.meshgrid(q_range, q_range), dim = -1)
-        k_pos = torch.stack(torch.meshgrid(k_range, k_range), dim = -1)
+        q_pos = torch.stack(torch.meshgrid(q_range, q_range, indexing = 'ij'), dim = -1)
+        k_pos = torch.stack(torch.meshgrid(k_range, k_range, indexing = 'ij'), dim = -1)
 
         q_pos, k_pos = map(lambda t: rearrange(t, 'i j c -> (i j) c'), (q_pos, k_pos))
         rel_pos = (q_pos[:, None, ...] - k_pos[None, :, ...]).abs()

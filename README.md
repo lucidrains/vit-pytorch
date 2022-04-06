@@ -20,6 +20,7 @@
 - [RegionViT](#regionvit)
 - [ScalableViT](#scalablevit)
 - [SepViT](#sepvit)
+- [MaxViT](#maxvit)
 - [NesT](#nest)
 - [MobileViT](#mobilevit)
 - [Masked Autoencoder](#masked-autoencoder)
@@ -594,6 +595,37 @@ v = SepViT(
 img = torch.randn(1, 3, 224, 224)
 
 preds = v(img) # (1, 1000)
+```
+
+## MaxViT
+
+<img src="./images/max-vit.png" width="400px"></img>
+
+This paper proposes a hybrid convolutional / attention network, using MBConv from the convolution side, and then block / grid axial sparse attention.
+
+They also claim this specific vision transformer is good for generative models (GANs).
+
+ex. MaxViT-S
+
+```python
+import torch
+from vit_pytorch.max_vit import MaxViT
+
+v = MaxViT(
+    num_classes = 1000,
+    dim_conv_stem = 64,               # dimension of the convolutional stem, would default to dimension of first layer if not specified
+    dim = 96,                         # dimension of first layer, doubles every layer
+    dim_head = 32,                    # dimension of attention heads, kept at 32 in paper
+    depth = (2, 2, 5, 2),             # number of MaxViT blocks per stage, which consists of MBConv, block-like attention, grid-like attention
+    window_size = 7,                  # window size for block and grids
+    mbconv_expansion_rate = 4,        # expansion rate of MBConv
+    mbconv_shrinkage_rate = 0.25,     # shrinkage rate of squeeze-excitation in MBConv
+    dropout = 0.1                     # dropout
+)
+
+img = torch.randn(2, 3, 224, 224)
+
+preds = v(img) # (2, 1000)
 ```
 
 ## NesT
@@ -1540,6 +1572,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
 @inproceedings{Li2022SepViTSV,
     title   = {SepViT: Separable Vision Transformer},
     author  = {Wei Li and Xing Wang and Xin Xia and Jie Wu and Xuefeng Xiao and Minghang Zheng and Shiping Wen},
+    year    = {2022}
+}
+```
+
+```bibtex
+@inproceedings{Tu2022MaxViTMV,
+    title   = {MaxViT: Multi-Axis Vision Transformer},
+    author  = {Zhe-Wei Tu and Hossein Talebi and Han Zhang and Feng Yang and Peyman Milanfar and Alan Conrad Bovik and Yinxiao Li},
     year    = {2022}
 }
 ```

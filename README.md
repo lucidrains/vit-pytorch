@@ -625,7 +625,7 @@ v = MaxViT(
 
 img = torch.randn(2, 3, 224, 224)
 
-preds = v(img) # (1, 1000)
+preds = v(img) # (2, 1000)
 ```
 
 ## NesT

@@ -138,7 +138,7 @@ class R2LTransformer(nn.Module):
         h_range = torch.arange(window_size_h, device = device)
         w_range = torch.arange(window_size_w, device = device)
 
-        grid_x, grid_y = torch.meshgrid(h_range, w_range)
+        grid_x, grid_y = torch.meshgrid(h_range, w_range, indexing = 'ij')
         grid = torch.stack((grid_x, grid_y))
         grid = rearrange(grid, 'c h w -> c (h w)')
         grid = (grid[:, :, None] - grid[:, None, :]) + (self.window_size - 1)

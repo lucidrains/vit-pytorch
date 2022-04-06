@@ -108,7 +108,7 @@ class Attention(nn.Module):
         # calculate and store indices for retrieving bias
 
         pos = torch.arange(window_size)
-        grid = torch.stack(torch.meshgrid(pos, pos))
+        grid = torch.stack(torch.meshgrid(pos, pos, indexing = 'ij'))
         grid = rearrange(grid, 'c i j -> (i j) c')
         rel_pos = grid[:, None] - grid[None, :]
         rel_pos += window_size - 1
@@ -144,7 +144,7 @@ class Attention(nn.Module):
         # add dynamic positional bias
 
         pos = torch.arange(-wsz, wsz + 1, device = device)
-        rel_pos = torch.stack(torch.meshgrid(pos, pos))
+        rel_pos = torch.stack(torch.meshgrid(pos, pos, indexing = 'ij'))
         rel_pos = rearrange(rel_pos, 'c i j -> (i j) c')
         biases = self.dpb(rel_pos.float())
         rel_pos_bias = biases[self.rel_pos_indices]

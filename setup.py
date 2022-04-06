@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
   name = 'vit-pytorch',
   packages = find_packages(exclude=['examples']),
-  version = '0.32.2',
+  version = '0.33.0',
   license='MIT',
   description = 'Vision Transformer (ViT) - Pytorch',
   author = 'Phil Wang',
@@ -16,7 +16,7 @@ setup(
   ],
   install_requires=[
     'einops>=0.4.1',
-    'torch>=1.6',
+    'torch>=1.10',
     'torchvision'
   ],
   setup_requires=[

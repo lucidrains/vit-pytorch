@@ -71,7 +71,7 @@ class MBConvResidual(nn.Module):
     def forward(self, x):
         out = self.fn(x)
         out = self.dropsample(out)
-        return out
+        return out + x
 
 class Dropsample(nn.Module):
     def __init__(self, prob = 0):

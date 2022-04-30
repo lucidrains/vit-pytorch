@@ -694,21 +694,22 @@ from vit_pytorch import ViT
 from vit_pytorch.simmim import SimMIM
 
 v = ViT(
-    image_size = 256,
-    patch_size = 32,
-    num_classes = 1000,
-    dim = 1024,
-    depth = 6,
-    heads = 8,
-    mlp_dim = 2048
+    image_size=224,
+    patch_size=16,
+    num_classes=1000,
+    dim=1024,
+    depth=6,
+    heads=8,
+    mlp_dim=2048,
 )
 
 mim = SimMIM(
-    encoder = v,
-    masking_ratio = 0.5  # they found 50% to yield the best results
+    encoder=v,
+    encoder_stride=16,  # for swin transformer, it should be 32
+    masking_ratio=0.5,  # they found 50% to yield the best results
 )
 
-images = torch.randn(8, 3, 256, 256)
+images = torch.randn(8, 3, 224, 224)
 
 loss = mim(images)
 loss.backward()

@@ -164,12 +164,14 @@ class CvT(nn.Module):
 
             dim = config['emb_dim']
 
-        self.layers = nn.Sequential(
-            *layers,
+        self.layers = nn.Sequential(*layers)
+
+        self.to_logits = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             Rearrange('... () () -> ...'),
             nn.Linear(dim, num_classes)
         )
 
     def forward(self, x):
-        return self.layers(x)
+        latents = self.layers(x)
+        return self.to_logits(latents)

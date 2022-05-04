@@ -6,6 +6,7 @@
 - [Install](#install)
 - [Usage](#usage)
 - [Parameters](#parameters)
+- [Simple ViT](#simple-vit)
 - [Distillation](#distillation)
 - [Deep ViT](#deep-vit)
 - [CaiT](#cait)
@@ -105,6 +106,33 @@ Dropout rate.
 Embedding dropout rate.
 - `pool`: string, either `cls` token pooling or `mean` pooling
 
+
+## Simple ViT
+
+<a href="https://arxiv.org/abs/2205.01580">An update</a> from some of the same authors of the original paper proposes simplifications to `ViT` that allows it to train faster and better.
+
+Among these simplifications include 2d sinusoidal positional embedding, global average pooling (no CLS token), no dropout, batch sizes of 1024 rather than 4096, and use of RandAugment and MixUp augmentations. They also show that a simple linear at the end is not significantly worse than the original MLP head
+
+You can use it by importing the `SimpleViT` as shown below
+
+```python
+import torch
+from vit_pytorch import SimpleViT
+
+v = SimpleViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
+```
 
 ## Distillation
 
@@ -1667,6 +1695,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
     year    = {2021},
     volume  = {abs/2106.09785}
 }
+```
+
+```bibtex
+@misc{Beyer2022BetterPlainViT
+    title     = {Better plain ViT baselines for ImageNet-1k},
+    author    = {Beyer, Lucas and Zhai, Xiaohua and Kolesnikov, Alexander},
+    publisher = {arXiv},
+    year      = {2022}
+}
+
 ```
 
 ```bibtex

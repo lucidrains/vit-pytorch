@@ -661,7 +661,7 @@ preds = v(img) # (2, 1000)
 
 <img src="./images/nest.png" width="400px"></img>
 
-This <a href="https://arxiv.org/abs/2105.12723">paper</a> decided to process the image in hierarchical stages, with attention only within tokens of local blocks, which aggregate as it moves up the heirarchy. The aggregation is done in the image plane, and contains a convolution and subsequent maxpool to allow it to pass information across the boundary.
+This <a href="https://arxiv.org/abs/2105.12723">paper</a> decided to process the image in hierarchical stages, with attention only within tokens of local blocks, which aggregate as it moves up the hierarchy. The aggregation is done in the image plane, and contains a convolution and subsequent maxpool to allow it to pass information across the boundary.
 
 You can use it with the following code (ex. NesT-T)
 
@@ -675,7 +675,7 @@ nest = NesT(
     dim = 96,
     heads = 3,
     num_hierarchies = 3,        # number of hierarchies
-    block_repeats = (2, 2, 8),  # the number of transformer blocks at each heirarchy, starting from the bottom
+    block_repeats = (2, 2, 8),  # the number of transformer blocks at each hierarchy, starting from the bottom
     num_classes = 1000
 )
 

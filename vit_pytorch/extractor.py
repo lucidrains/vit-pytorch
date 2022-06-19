@@ -4,6 +4,11 @@ from torch import nn
 def exists(val):
     return val is not None
 
+def apply_tuple_or_single(fn, val):
+    if isinstance(val, tuple):
+        return tuple(map(fn, val))
+    return fn(val)
+
 class Extractor(nn.Module):
     def __init__(
         self,
@@ -28,8 +33,8 @@ class Extractor(nn.Module):
         self.return_embeddings_only = return_embeddings_only
 
     def _hook(self, _, inputs, output):
-        tensor_to_save = inputs if self.layer_save_input else output
-        self.latents = tensor_to_save.clone().detach()
+        layer_output = inputs if self.layer_save_input else output
+        self.latents = apply_tuple_or_single(lambda t: t.clone().detach(), layer_output)
 
     def _register_hook(self):
         assert hasattr(self.vit, self.layer_name), 'layer whose output to take as embedding not found in vision transformer'
@@ -62,7 +67,7 @@ class Extractor(nn.Module):
         pred = self.vit(img)
 
         target_device = self.device if exists(self.device) else img.device
-        latents = self.latents.to(target_device)
+        latents = apply_tuple_or_single(lambda t: t.to(target_device), self.latents)
 
         if return_embeddings_only or self.return_embeddings_only:
             return latents

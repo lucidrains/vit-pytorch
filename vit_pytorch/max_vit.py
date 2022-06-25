@@ -100,12 +100,12 @@ def MBConv(
     stride = 2 if downsample else 1
 
     net = nn.Sequential(
-        nn.Conv2d(dim_in, dim_out, 1),
-        nn.BatchNorm2d(dim_out),
-        nn.SiLU(),
-        nn.Conv2d(dim_out, dim_out, 3, stride = stride, padding = 1, groups = dim_out),
-        SqueezeExcitation(dim_out, shrinkage_rate = shrinkage_rate),
-        nn.Conv2d(dim_out, dim_out, 1),
+        nn.Conv2d(dim_in, hidden_dim, 1),
+        nn.BatchNorm2d(hidden_dim),
+        nn.GELU(),
+        nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = dim_out),
+        SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
+        nn.Conv2d(hidden_dim, dim_out, 1),
         nn.BatchNorm2d(dim_out)
     )
 

@@ -103,7 +103,9 @@ def MBConv(
         nn.Conv2d(dim_in, hidden_dim, 1),
         nn.BatchNorm2d(hidden_dim),
         nn.GELU(),
-        nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = dim_out),
+        nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim),
+        nn.BatchNorm2d(hidden_dim),
+        nn.GELU(),
         SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
         nn.Conv2d(hidden_dim, dim_out, 1),
         nn.BatchNorm2d(dim_out)

@@ -52,6 +52,8 @@ The official Jax repository is <a href="https://github.com/google-research/visio
 
 A tensorflow2 translation also exists <a href="https://github.com/taki0112/vit-tensorflow">here</a>, created by research scientist <a href="https://github.com/taki0112">Junho Kim</a>! 🙏
 
+<a href="https://github.com/conceptofmind/vit-flax">Flax translation</a> by <a href="https://github.com/conceptofmind">Enrico Shippole</a>!
+
 ## Install
 
 ```bash

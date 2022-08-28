@@ -18,6 +18,7 @@
 - [CvT](#cvt)
 - [Twins SVT](#twins-svt)
 - [CrossFormer](#crossformer)
+- [EfficientFormer](#efficientFormer)
 - [RegionViT](#regionvit)
 - [ScalableViT](#scalablevit)
 - [SepViT](#sepvit)
@@ -565,6 +566,30 @@ model = CrossFormer(
 img = torch.randn(1, 3, 224, 224)
 
 pred = model(img) # (1, 1000)
+```
+
+## EfficientFormer
+
+<img src="./images/levit.png" width="300px"></img>
+
+<a href="https://arxiv.org/abs/2206.01191">This paper</a> combines metablocks: mobilenet blocks with transformers.
+
+<a href="https://github.com/snap-research/EfficientFormer">Official repository</a>
+
+```python
+import torch
+from vit_pytorch.efficientformer import EfficientFormer, EfficientFormer_width, EfficientFormer_depth
+
+effFormer = EfficientFormer(
+    layers=EfficientFormer_depth['l1'],
+    embed_dims=EfficientFormer_width['l1'],
+    downsamples=[True, True, True, True],
+    vit_num=1,
+    image_size=224,
+    num_classes=1000
+)
+img = torch.randn(1, 3, 224, 224)
+effFormer(img)  # (1, 1000)
 ```
 
 ## ScalableViT
@@ -1607,6 +1632,19 @@ Coming from computer vision and new to transformers? Here are some resources tha
     eprint  = {2108.00154},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{li2022efficientformer,
+  doi = {10.48550/ARXIV.2206.01191},
+  url = {https://arxiv.org/abs/2206.01191},
+  author = {Li, Yanyu and Yuan, Geng and Wen, Yang and Hu, Eric and Evangelidis, Georgios and Tulyakov, Sergey and Wang, Yanzhi and Ren, Jian},
+  keywords = {Computer Vision and Pattern Recognition (cs.CV), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {EfficientFormer: Vision Transformers at MobileNet Speed},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}
 }
 ```
 

@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torch import nn
 from vit_pytorch.vit import ViT
 from vit_pytorch.t2t import T2TViT
+from vit_pytorch.mobile_vit import MobileViT, conv_1x1_bn, Reduce
 from vit_pytorch.efficient import ViT as EfficientViT
 
 from einops import rearrange, repeat
@@ -27,9 +28,7 @@ class DistillMixin:
         if distilling:
             distill_tokens = repeat(distill_token, '() n d -> b n d', b = b)
             x = torch.cat((x, distill_tokens), dim = 1)
-
         x = self._attend(x)
-
         if distilling:
             x, distill_tokens = x[:, :-1], x[:, -1]
 
@@ -95,6 +94,32 @@ class DistillableEfficientViT(DistillMixin, EfficientViT):
     def _attend(self, x):
         return self.transformer(x)
 
+class DistillableMobileViT(MobileViT):
+    def __init__(self, *args, **kwargs):
+        super(DistillableMobileViT, self).__init__(*args, **kwargs)
+        self.args = args
+        self.kwargs = kwargs
+        self.num_classes = kwargs['num_classes']
+
+    def to_vit(self):
+        v = MobileViT(*self.args, **self.kwargs)
+        v.load_state_dict(self.state_dict())
+        return v
+
+    def forward(self, img, distill_token = None):
+        distilling = exists(distill_token)
+        x = self.conv1(img)
+
+        for conv in self.stem:
+            x = conv(x)
+
+        for conv, attn in self.trunk:
+            x = conv(x)
+            x = attn(x)
+        if distilling:
+            return self.to_logits(x), x
+        return self.to_logits(x)
+
 # knowledge distillation wrapper
 
 class DistillWrapper(nn.Module):
@@ -108,23 +133,30 @@ class DistillWrapper(nn.Module):
         hard = False
     ):
         super().__init__()
-        assert (isinstance(student, (DistillableViT, DistillableT2TViT, DistillableEfficientViT))) , 'student must be a vision transformer'
+        assert (isinstance(student, (DistillableViT, DistillableT2TViT, DistillableEfficientViT, DistillableMobileViT))) , 'student must be a vision transformer'
 
         self.teacher = teacher
         self.student = student
 
-        dim = student.dim
         num_classes = student.num_classes
         self.temperature = temperature
         self.alpha = alpha
         self.hard = hard
 
-        self.distillation_token = nn.Parameter(torch.randn(1, 1, dim))
-
-        self.distill_mlp = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, num_classes)
-        )
+        if isinstance(student, DistillableMobileViT):
+            self.distillation_token = True
+            self.distill_mlp = nn.Sequential(
+                conv_1x1_bn(student.channels[-2], student.last_dim),
+                Reduce('b c h w -> b c', 'mean'),
+                nn.Linear(student.channels[-1], num_classes, bias=False)
+            )
+        else:
+            dim = student.dim
+            self.distillation_token = nn.Parameter(torch.randn(1, 1, dim))
+            self.distill_mlp = nn.Sequential(
+                nn.LayerNorm(dim),
+                nn.Linear(dim, num_classes)
+            )
 
     def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
         b, *_ = img.shape

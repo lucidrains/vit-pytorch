@@ -206,6 +206,8 @@ class MobileViT(nn.Module):
 
         init_dim, *_, last_dim = channels
 
+        self.channels = channels
+        self.last_dim = last_dim
         self.conv1 = conv_nxn_bn(3, init_dim, stride=2)
 
         self.stem = nn.ModuleList([])
@@ -226,9 +228,9 @@ class MobileViT(nn.Module):
             MobileViTBlock(dims[1], depths[1], channels[7],
                            kernel_size, patch_size, int(dims[1] * 4))
         ]))
-
+        l_stride = 1 if ih == 224 else 2 # for 224 or 256
         self.trunk.append(nn.ModuleList([
-            MV2Block(channels[7], channels[8], 2, expansion),
+            MV2Block(channels[7], channels[8], l_stride, expansion),
             MobileViTBlock(dims[2], depths[2], channels[9],
                            kernel_size, patch_size, int(dims[2] * 4))
         ]))

@@ -30,6 +30,7 @@
 - [Adaptive Token Sampling](#adaptive-token-sampling)
 - [Patch Merger](#patch-merger)
 - [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
+- [3D Vit](#3d-vit)
 - [Parallel ViT](#parallel-vit)
 - [Learnable Memory ViT](#learnable-memory-vit)
 - [Dino](#dino)
@@ -965,6 +966,37 @@ spt = SPT(
 img = torch.randn(4, 3, 256, 256)
 
 tokens = spt(img) # (4, 256, 1024)
+```
+
+## 3D ViT
+
+By popular request, I will start extending a few of the architectures in this repository to 3D ViTs, for use with video, medical imaging, etc.
+
+You will need to pass in two additional hyperparameters: (1) the number of frames `frames` and (2) patch size along the frame dimension `frame_patch_size`
+
+For starters, with the most basic ViT
+
+```python
+import torch
+from vit_pytorch.vit_3d import ViT
+
+v = ViT(
+    image_size = 128,          # image size
+    frames = 16,               # number of frames
+    image_patch_size = 16,     # image patch size
+    frame_patch_size = 2,      # frame patch size
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+video = torch.randn(4, 3, 16, 128, 128) # (batch, channels, frames, height, width)
+
+preds = v(video) # (4, 1000)
 ```
 
 ## Parallel ViT

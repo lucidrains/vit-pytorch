@@ -89,7 +89,7 @@ class MAE(nn.Module):
 
         # splice out the mask tokens and project to pixel values
 
-        mask_tokens = decoded_tokens[:, :num_masked]
+        mask_tokens = decoded_tokens[batch_range, masked_indices]
         pred_pixel_values = self.to_pixels(mask_tokens)
 
         # calculate reconstruction loss

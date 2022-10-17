@@ -13,9 +13,9 @@ def conv_1x1_bn(inp, oup):
         nn.SiLU()
     )
 
-def conv_nxn_bn(inp, oup, kernal_size=3, stride=1):
+def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
     return nn.Sequential(
-        nn.Conv2d(inp, oup, kernal_size, stride, 1, bias=False),
+        nn.Conv2d(inp, oup, kernel_size, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
         nn.SiLU()
     )

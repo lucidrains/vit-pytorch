@@ -131,7 +131,7 @@ class NesT(nn.Module):
         fmap_size = image_size // patch_size
         blocks = 2 ** (num_hierarchies - 1)
 
-        seq_len = (fmap_size // blocks) ** 2   # sequence length is held constant across heirarchy
+        seq_len = (fmap_size // blocks) ** 2   # sequence length is held constant across hierarchy
         hierarchies = list(reversed(range(num_hierarchies)))
         mults = [2 ** i for i in reversed(hierarchies)]
 

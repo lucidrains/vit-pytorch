@@ -31,6 +31,7 @@
 - [Patch Merger](#patch-merger)
 - [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
 - [3D Vit](#3d-vit)
+- [ViVit](#vivit)
 - [Parallel ViT](#parallel-vit)
 - [Learnable Memory ViT](#learnable-memory-vit)
 - [Dino](#dino)
@@ -1022,6 +1023,34 @@ video = torch.randn(4, 3, 16, 128, 128) # (batch, channels, frames, height, widt
 preds = v(video) # (4, 1000)
 ```
 
+## ViViT
+
+<img src="./images/vivit.png" width="350px"></img>
+
+This <a href="https://arxiv.org/abs/2103.15691">paper</a> offers 3 different types of architectures for efficient attention of videos, with the main theme being factorizing the attention across space and time. This repository will offer the first variant, which is a spatial transformer followed by a temporal one.
+
+```python
+import torch
+from vit_pytorch.vivit import ViT
+
+v = ViT(
+    image_size = 128,          # image size
+    frames = 16,               # number of frames
+    image_patch_size = 16,     # image patch size
+    frame_patch_size = 2,      # frame patch size
+    num_classes = 1000,
+    dim = 1024,
+    spatial_depth = 6,         # depth of the spatial transformer
+    temporal_depth = 6,        # depth of the temporal transformer
+    heads = 8,
+    mlp_dim = 2048
+)
+
+video = torch.randn(4, 3, 16, 128, 128) # (batch, channels, frames, height, width)
+
+preds = v(video) # (4, 1000)
+```
+
 ## Parallel ViT
 
 <img src="./images/parallel-vit.png" width="350px"></img>
@@ -1803,6 +1832,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
     year      = {2022}
 }
 
+```
+
+```bibtex
+@article{Arnab2021ViViTAV,
+    title   = {ViViT: A Video Vision Transformer},
+    author  = {Anurag Arnab and Mostafa Dehghani and Georg Heigold and Chen Sun and Mario Lucic and Cordelia Schmid},
+    journal = {2021 IEEE/CVF International Conference on Computer Vision (ICCV)},
+    year    = {2021},
+    pages   = {6816-6826}
+}
 ```
 
 ```bibtex

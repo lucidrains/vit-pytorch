@@ -112,8 +112,8 @@ class ViT(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
-    def forward(self, img):
-        x = self.to_patch_embedding(img)
+    def forward(self, video):
+        x = self.to_patch_embedding(video)
         b, n, _ = x.shape
 
         cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)

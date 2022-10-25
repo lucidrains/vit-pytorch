@@ -114,10 +114,10 @@ class SimpleViT(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
-    def forward(self, img):
-        *_, h, w, dtype = *img.shape, img.dtype
+    def forward(self, video):
+        *_, h, w, dtype = *video.shape, video.dtype
 
-        x = self.to_patch_embedding(img)
+        x = self.to_patch_embedding(video)
         pe = posemb_sincos_3d(x)
         x = rearrange(x, 'b ... d -> b (...) d') + pe
 

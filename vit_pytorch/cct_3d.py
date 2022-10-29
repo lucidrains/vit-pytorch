@@ -160,16 +160,26 @@ class DropPath(nn.Module):
         return output
 
 class Tokenizer(nn.Module):
-    def __init__(self,
-                 kernel_size, stride, padding,
-                 pooling_kernel_size=3, pooling_stride=2, pooling_padding=1,
-                 n_conv_layers=1,
-                 n_input_channels=3,
-                 n_output_channels=64,
-                 in_planes=64,
-                 activation=None,
-                 max_pool=True,
-                 conv_bias=False):
+    def __init__(
+        self,
+        frame_kernel_size,
+        kernel_size,
+        stride,
+        padding,
+        frame_stride=1,
+        frame_pooling_stride=1,
+        frame_pooling_kernel_size=1,
+        pooling_kernel_size=3,
+        pooling_stride=2,
+        pooling_padding=1,
+        n_conv_layers=1,
+        n_input_channels=3,
+        n_output_channels=64,
+        in_planes=64,
+        activation=None,
+        max_pool=True,
+        conv_bias=False
+    ):
         super().__init__()
 
         n_filter_list = [n_input_channels] + \
@@ -180,46 +190,49 @@ class Tokenizer(nn.Module):
 
         self.conv_layers = nn.Sequential(
             *[nn.Sequential(
-                nn.Conv2d(chan_in, chan_out,
-                          kernel_size=(kernel_size, kernel_size),
-                          stride=(stride, stride),
-                          padding=(padding, padding), bias=conv_bias),
+                nn.Conv3d(chan_in, chan_out,
+                          kernel_size=(frame_kernel_size, kernel_size, kernel_size),
+                          stride=(frame_stride, stride, stride),
+                          padding=(frame_kernel_size // 2, padding, padding), bias=conv_bias),
                 nn.Identity() if not exists(activation) else activation(),
-                nn.MaxPool2d(kernel_size=pooling_kernel_size,
-                             stride=pooling_stride,
-                             padding=pooling_padding) if max_pool else nn.Identity()
+                nn.MaxPool3d(kernel_size=(frame_pooling_kernel_size, pooling_kernel_size, pooling_kernel_size),
+                             stride=(frame_pooling_stride, pooling_stride, pooling_stride),
+                             padding=(frame_pooling_kernel_size // 2, pooling_padding, pooling_padding)) if max_pool else nn.Identity()
             )
                 for chan_in, chan_out in n_filter_list_pairs
             ])
 
         self.apply(self.init_weight)
 
-    def sequence_length(self, n_channels=3, height=224, width=224):
-        return self.forward(torch.zeros((1, n_channels, height, width))).shape[1]
+    def sequence_length(self, n_channels=3, frames=8, height=224, width=224):
+        return self.forward(torch.zeros((1, n_channels, frames, height, width))).shape[1]
 
     def forward(self, x):
-        return rearrange(self.conv_layers(x), 'b c h w -> b (h w) c')
+        x = self.conv_layers(x)
+        return rearrange(x, 'b c f h w -> b (f h w) c')
 
     @staticmethod
     def init_weight(m):
-        if isinstance(m, nn.Conv2d):
+        if isinstance(m, nn.Conv3d):
             nn.init.kaiming_normal_(m.weight)
 
 
 class TransformerClassifier(nn.Module):
-    def __init__(self,
-                 seq_pool=True,
-                 embedding_dim=768,
-                 num_layers=12,
-                 num_heads=12,
-                 mlp_ratio=4.0,
-                 num_classes=1000,
-                 dropout_rate=0.1,
-                 attention_dropout=0.1,
-                 stochastic_depth_rate=0.1,
-                 positional_embedding='sine',
-                 sequence_length=None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        seq_pool=True,
+        embedding_dim=768,
+        num_layers=12,
+        num_heads=12,
+        mlp_ratio=4.0,
+        num_classes=1000,
+        dropout_rate=0.1,
+        attention_dropout=0.1,
+        stochastic_depth_rate=0.1,
+        positional_embedding='sine',
+        sequence_length=None,
+        *args, **kwargs
+    ):
         super().__init__()
         assert positional_embedding in {'sine', 'learnable', 'none'}
 
@@ -234,19 +247,17 @@ class TransformerClassifier(nn.Module):
 
         if not seq_pool:
             sequence_length += 1
-            self.class_emb = nn.Parameter(torch.zeros(1, 1, self.embedding_dim), requires_grad=True)
+            self.class_emb = nn.Parameter(torch.zeros(1, 1, self.embedding_dim))
         else:
             self.attention_pool = nn.Linear(self.embedding_dim, 1)
 
         if positional_embedding == 'none':
             self.positional_emb = None
         elif positional_embedding == 'learnable':
-            self.positional_emb = nn.Parameter(torch.zeros(1, sequence_length, embedding_dim),
-                                               requires_grad=True)
-            nn.init.trunc_normal_(self.positional_emb, std=0.2)
+            self.positional_emb = nn.Parameter(torch.zeros(1, sequence_length, embedding_dim))
+            nn.init.trunc_normal_(self.positional_emb, std = 0.2)
         else:
-            self.positional_emb = nn.Parameter(sinusoidal_embedding(sequence_length, embedding_dim),
-                                               requires_grad=False)
+            self.register_buffer('positional_emb', sinusoidal_embedding(sequence_length, embedding_dim))
 
         self.dropout = nn.Dropout(p=dropout_rate)
 
@@ -262,6 +273,16 @@ class TransformerClassifier(nn.Module):
 
         self.fc = nn.Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
+
+    @staticmethod
+    def init_weight(m):
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=.02)
+            if isinstance(m, nn.Linear) and exists(m.bias):
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
 
     def forward(self, x):
         b = x.shape[0]
@@ -291,25 +312,20 @@ class TransformerClassifier(nn.Module):
 
         return self.fc(x)
 
-    @staticmethod
-    def init_weight(m):
-        if isinstance(m, nn.Linear):
-            nn.init.trunc_normal_(m.weight, std=.02)
-            if isinstance(m, nn.Linear) and exists(m.bias):
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
-
 # CCT Main model
 
 class CCT(nn.Module):
     def __init__(
         self,
         img_size=224,
+        num_frames=8,
         embedding_dim=768,
         n_input_channels=3,
         n_conv_layers=1,
+        frame_stride=1,
+        frame_kernel_size=3,
+        frame_pooling_kernel_size=1,
+        frame_pooling_stride=1,
         kernel_size=7,
         stride=2,
         padding=3,
@@ -321,29 +337,39 @@ class CCT(nn.Module):
         super().__init__()
         img_height, img_width = pair(img_size)
 
-        self.tokenizer = Tokenizer(n_input_channels=n_input_channels,
-                                   n_output_channels=embedding_dim,
-                                   kernel_size=kernel_size,
-                                   stride=stride,
-                                   padding=padding,
-                                   pooling_kernel_size=pooling_kernel_size,
-                                   pooling_stride=pooling_stride,
-                                   pooling_padding=pooling_padding,
-                                   max_pool=True,
-                                   activation=nn.ReLU,
-                                   n_conv_layers=n_conv_layers,
-                                   conv_bias=False)
+        self.tokenizer = Tokenizer(
+            n_input_channels=n_input_channels,
+            n_output_channels=embedding_dim,
+            frame_stride=frame_stride,
+            frame_kernel_size=frame_kernel_size,
+            frame_pooling_stride=frame_pooling_stride,
+            frame_pooling_kernel_size=frame_pooling_kernel_size,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            pooling_kernel_size=pooling_kernel_size,
+            pooling_stride=pooling_stride,
+            pooling_padding=pooling_padding,
+            max_pool=True,
+            activation=nn.ReLU,
+            n_conv_layers=n_conv_layers,
+            conv_bias=False
+        )
 
         self.classifier = TransformerClassifier(
-            sequence_length=self.tokenizer.sequence_length(n_channels=n_input_channels,
-                                                           height=img_height,
-                                                           width=img_width),
+            sequence_length=self.tokenizer.sequence_length(
+                n_channels=n_input_channels,
+                frames=num_frames,
+                height=img_height,
+                width=img_width
+            ),
             embedding_dim=embedding_dim,
             seq_pool=True,
             dropout_rate=0.,
             attention_dropout=0.1,
             stochastic_depth=0.1,
-            *args, **kwargs)
+            *args, **kwargs
+        )
 
     def forward(self, x):
         x = self.tokenizer(x)

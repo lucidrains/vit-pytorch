@@ -1023,6 +1023,36 @@ video = torch.randn(4, 3, 16, 128, 128) # (batch, channels, frames, height, widt
 preds = v(video) # (4, 1000)
 ```
 
+3D version of <a href="https://github.com/lucidrains/vit-pytorch#cct">CCT</a>
+
+```python
+import torch
+from vit_pytorch.cct_3d import CCT
+
+cct = CCT(
+    img_size = 224,
+    num_frames = 8,
+    embedding_dim = 384,
+    n_conv_layers = 2,
+    frame_kernel_size = 3,
+    kernel_size = 7,
+    stride = 2,
+    padding = 3,
+    pooling_kernel_size = 3,
+    pooling_stride = 2,
+    pooling_padding = 1,
+    num_layers = 14,
+    num_heads = 6,
+    mlp_radio = 3.,
+    num_classes = 1000,
+    positional_embedding = 'learnable'
+)
+
+video = torch.randn(1, 3, 8, 224, 224) # (batch, channels, frames, height, width)
+pred = cct(video)
+print(pred.shape)
+```
+
 ## ViViT
 
 <img src="./images/vivit.png" width="350px"></img>

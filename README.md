@@ -1884,4 +1884,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@article{Liu2022PatchDropoutEV,
+    title   = {PatchDropout: Economizing Vision Transformers Using Patch Dropout},
+    author  = {Yue Liu and Christos Matsoukas and Fredrik Strand and Hossein Azizpour and Kevin Smith},
+    journal = {ArXiv},
+    year    = {2022},
+    volume  = {abs/2208.07220}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

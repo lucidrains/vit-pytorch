@@ -1874,6 +1874,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@article{Liu2022PatchDropoutEV,
+    title   = {PatchDropout: Economizing Vision Transformers Using Patch Dropout},
+    author  = {Yue Liu and Christos Matsoukas and Fredrik Strand and Hossein Azizpour and Kevin Smith},
+    journal = {ArXiv},
+    year    = {2022},
+    volume  = {abs/2208.07220}
+}
+```
+
+```bibtex
 @misc{vaswani2017attention,
     title   = {Attention Is All You Need},
     author  = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin},

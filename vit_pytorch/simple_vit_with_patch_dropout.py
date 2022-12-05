@@ -100,7 +100,7 @@ class Transformer(nn.Module):
         return x
 
 class SimpleViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, patch_dropout = 0.5):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -114,6 +114,8 @@ class SimpleViT(nn.Module):
             Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),
             nn.Linear(patch_dim, dim),
         )
+
+        self.patch_dropout = PatchDropout(patch_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 
@@ -129,6 +131,8 @@ class SimpleViT(nn.Module):
         x = self.to_patch_embedding(img)
         pe = posemb_sincos_2d(x)
         x = rearrange(x, 'b ... d -> b (...) d') + pe
+
+        x = self.patch_dropout(x)
 
         x = self.transformer(x)
         x = x.mean(dim = 1)

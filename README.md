@@ -1884,6 +1884,18 @@ Coming from computer vision and new to transformers? Here are some resources tha
 ```
 
 ```bibtex
+@misc{https://doi.org/10.48550/arxiv.2302.01327,
+    doi     = {10.48550/ARXIV.2302.01327},
+    url     = {https://arxiv.org/abs/2302.01327},
+    author  = {Kumar, Manoj and Dehghani, Mostafa and Houlsby, Neil},
+    title   = {Dual PatchNorm},
+    publisher = {arXiv},
+    year    = {2023},
+    copyright = {Creative Commons Attribution 4.0 International}
+}
+```
+
+```bibtex
 @misc{vaswani2017attention,
     title   = {Attention Is All You Need},
     author  = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin},

@@ -144,7 +144,9 @@ class NesT(nn.Module):
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size),
+            LayerNorm(patch_dim),
             nn.Conv2d(patch_dim, layer_dims[0], 1),
+            LayerNorm(layer_dims[0])
         )
 
         block_repeats = cast_tuple(block_repeats, num_hierarchies)

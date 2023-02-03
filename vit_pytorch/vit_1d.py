@@ -84,7 +84,9 @@ class ViT(nn.Module):
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (n p) -> b n (p c)', p = patch_size),
+            nn.LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim),
         )
 
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))

@@ -85,7 +85,9 @@ class SimpleViT(nn.Module):
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (n p) -> b n (p c)', p = patch_size),
+            nn.LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim),
         )
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)

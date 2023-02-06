@@ -71,7 +71,12 @@ class PatchEmbedding(nn.Module):
         self.dim = dim
         self.dim_out = dim_out
         self.patch_size = patch_size
-        self.proj = nn.Conv2d(patch_size ** 2 * dim, dim_out, 1)
+
+        self.proj = nn.Sequential(
+            LayerNorm(patch_size ** 2 * dim),
+            nn.Conv2d(patch_size ** 2 * dim, dim_out, 1),
+            LayerNorm(dim_out)
+        )
 
     def forward(self, fmap):
         p = self.patch_size

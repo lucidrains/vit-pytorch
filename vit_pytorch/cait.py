@@ -150,7 +150,9 @@ class CaiT(nn.Module):
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
         )
 
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches, dim))

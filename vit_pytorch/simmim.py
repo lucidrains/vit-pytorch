@@ -18,8 +18,11 @@ class SimMIM(nn.Module):
 
         self.encoder = encoder
         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
-        self.to_patch, self.patch_to_emb = encoder.to_patch_embedding[:2]
-        pixel_values_per_patch = self.patch_to_emb.weight.shape[-1]
+
+        self.to_patch = encoder.to_patch_embedding[0]
+        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
+
+        pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
 
         # simple linear head
 

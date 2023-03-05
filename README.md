@@ -303,7 +303,7 @@ cct = CCT(
     pooling_padding = 1,
     num_layers = 14,
     num_heads = 6,
-    mlp_radio = 3.,
+    mlp_ratio = 3.,
     num_classes = 1000,
     positional_embedding = 'learnable', # ['sine', 'learnable', 'none']
 )
@@ -1043,7 +1043,7 @@ cct = CCT(
     pooling_padding = 1,
     num_layers = 14,
     num_heads = 6,
-    mlp_radio = 3.,
+    mlp_ratio = 3.,
     num_classes = 1000,
     positional_embedding = 'learnable'
 )

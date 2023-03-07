@@ -27,6 +27,7 @@
 - [Masked Autoencoder](#masked-autoencoder)
 - [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
+- [Masked Position Prediction](#masked-position-prediction)
 - [Adaptive Token Sampling](#adaptive-token-sampling)
 - [Patch Merger](#patch-merger)
 - [Vision Transformer for Small Datasets](#vision-transformer-for-small-datasets)
@@ -842,6 +843,39 @@ for _ in range(100):
 
 # save your improved network
 torch.save(model.state_dict(), './pretrained-net.pt')
+```
+
+## Masked Position Prediction
+
+<img src="./images/mp3.png" width="400px"></img>
+
+New <a href="https://arxiv.org/abs/2207.07611">paper</a> that introduces masked position prediction pre-training criteria. This strategy is more efficient than the Masked Autoencoder strategy and has comparable performance.  
+
+```python
+import torch
+from vit_pytorch.mp3 import MP3
+
+model = MP3(
+    image_size=256,
+    patch_size=8,
+    masking_ratio=0.75
+    dim=1024,
+    depth=6,
+    heads=8,
+    mlp_dim=2048,
+    dropout=0.1,
+)
+
+images = torch.randn(8, 3, 256, 256)
+
+loss = model(images)
+loss.backward()
+
+# that's all!
+# do the above in a for loop many times with a lot of images and your vision transformer will learn
+
+# save your improved vision transformer
+torch.save(v.state_dict(), './trained-vit.pt')
 ```
 
 ## Adaptive Token Sampling

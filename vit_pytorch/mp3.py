@@ -1,5 +1,6 @@
 import torch
 from torch import nn, einsum
+import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
@@ -85,7 +86,7 @@ class Transformer(nn.Module):
 # Masked Position Prediction Pre-Training
 
 class MP3(nn.Module):
-    def __init__(self, *, image_size, patch_size, masking_ratio, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, image_size, patch_size, masking_ratio, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -105,20 +106,20 @@ class MP3(nn.Module):
             nn.LayerNorm(dim),
         )
 
-        self.dropout = nn.Dropout(emb_dropout)
-
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(dim),
             nn.Linear(dim, num_patches)
         )
+        self.out = nn.Softmax(dim = -1)
 
     def forward(self, img):
         device = img.device
         tokens = self.to_patch_embedding(img)
         batch, num_patches, *_ = tokens.shape
 
+        # Masking
         num_masked = int(self.masking_ratio * num_patches)
         rand_indices = torch.rand(batch, num_patches, device = device).argsort(dim = -1)
         masked_indices, unmasked_indices = rand_indices[:, :num_masked], rand_indices[:, num_masked:]
@@ -126,6 +127,11 @@ class MP3(nn.Module):
         batch_range = torch.arange(batch, device = device)[:, None]
         tokens_unmasked = tokens[batch_range, unmasked_indices]
 
-        x = self.transformer(tokens, tokens_unmasked)
+        x = rearrange(self.mlp_head(self.transformer(tokens, tokens_unmasked)), 'b n d -> (b n) d')
+        x = self.out(x)
+        
+        # Define labels
+        labels = repeat(torch.arange(num_patches, device = device), 'n -> b n', b = batch).flatten()
+        loss = F.cross_entropy(x, labels)
 
-        return self.mlp_head(x)
+        return loss

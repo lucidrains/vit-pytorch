@@ -853,22 +853,27 @@ New <a href="https://arxiv.org/abs/2207.07611">paper</a> that introduces masked 
 
 ```python
 import torch
-from vit_pytorch.mp3 import MP3
+from vit_pytorch.mp3 import ViT, MP3
 
-model = MP3(
-    image_size=256,
-    patch_size=8,
-    masking_ratio=0.75
-    dim=1024,
-    depth=6,
-    heads=8,
-    mlp_dim=2048,
-    dropout=0.1,
+v = ViT(
+    num_classes = 1000,
+    image_size = 256,
+    patch_size = 8,
+    dim = 1024,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 2048,
+    dropout = 0.1,
+)
+
+mp3 = MP3(
+    vit = v,
+    masking_ratio = 0.75
 )
 
 images = torch.randn(8, 3, 256, 256)
 
-loss = model(images)
+loss = mp3(images)
 loss.backward()
 
 # that's all!

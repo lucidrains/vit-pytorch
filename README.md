@@ -1945,4 +1945,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{dao2022flashattention,
+    title   = {Flash{A}ttention: Fast and Memory-Efficient Exact Attention with {IO}-Awareness},
+    author  = {Dao, Tri and Fu, Daniel Y. and Ermon, Stefano and Rudra, Atri and R{\'e}, Christopher},
+    booktitle = {Advances in Neural Information Processing Systems},
+    year    = {2022}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

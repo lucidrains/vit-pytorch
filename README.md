@@ -37,6 +37,7 @@
 - [Learnable Memory ViT](#learnable-memory-vit)
 - [Dino](#dino)
 - [EsViT](#esvit)
+- [VitResiDual](#vitresidual)
 - [Accessing Attention](#accessing-attention)
 - [Research Ideas](#research-ideas)
   * [Efficient Attention](#efficient-attention)
@@ -1331,6 +1332,33 @@ for _ in range(1000):
 
 # save your improved network
 torch.save(cvt.state_dict(), './pretrained-net.pt')
+```
+
+## ViTResidual
+
+This <a href="https://arxiv.org/abs/2304.14802">paper</a> notes that Pre-LN causes representation collapse issue thus proposing ResiDual, a transformer architecture with Pre-Post-LN.
+
+You can use it as follows
+
+```python
+import torch
+from vit_pytorch.vit_residual import ViTResiDual
+
+v = ViTResiDual(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
 ```
 
 ## Accessing Attention

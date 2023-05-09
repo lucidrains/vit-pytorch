@@ -37,7 +37,7 @@
 - [Learnable Memory ViT](#learnable-memory-vit)
 - [Dino](#dino)
 - [EsViT](#esvit)
-- [VitResiDual](#vitresidual)
+- [ViTResiDual](#vitresidual)
 - [Accessing Attention](#accessing-attention)
 - [Research Ideas](#research-ideas)
   * [Efficient Attention](#efficient-attention)

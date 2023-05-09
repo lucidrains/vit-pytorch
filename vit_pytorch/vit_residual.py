@@ -57,7 +57,7 @@ class Attention(nn.Module):
         return self.to_out(out)
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., enc_res_input_norm_scale = 1.0, enc_alpha = 1.0):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., enc_res_input_norm_scale = 1., enc_alpha = 1.):
         super().__init__()
         self.layers = nn.ModuleList([])
         self.norm = nn.LayerNorm(dim)
@@ -87,7 +87,7 @@ class Transformer(nn.Module):
         return x
 
 class ViTResiDual(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.,enc_res_input_norm_scale=1.0,enc_alpha=1.0):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., enc_res_input_norm_scale = 1., enc_alpha = 1.):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -107,7 +107,7 @@ class ViTResiDual(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout,enc_res_input_norm_scale,enc_alpha)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, enc_res_input_norm_scale, enc_alpha)
 
         self.pool = pool
         self.to_latent = nn.Identity()

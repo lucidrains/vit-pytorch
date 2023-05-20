@@ -146,7 +146,7 @@ class ViT(nn.Module):
         x = self.to_patch_embedding(video)
         b, f, n, _ = x.shape
 
-        x = x + self.pos_embedding
+        x = x + self.pos_embedding[:, :f, :n]
 
         if exists(self.spatial_cls_token):
             spatial_cls_tokens = repeat(self.spatial_cls_token, '1 1 d -> b f 1 d', b = b, f = f)

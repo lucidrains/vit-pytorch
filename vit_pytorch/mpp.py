@@ -96,6 +96,9 @@ class MPP(nn.Module):
         self.loss = MPPLoss(patch_size, channels, output_channel_bits,
                             max_pixel_val, mean, std)
 
+        # extract patching function
+        self.patch_to_emb = nn.Sequential(transformer.to_patch_embedding[1:])
+
         # output transformation
         self.to_bits = nn.Linear(dim, 2**(output_channel_bits * channels))
 
@@ -151,7 +154,7 @@ class MPP(nn.Module):
         masked_input[bool_mask_replace] = self.mask_token
 
         # linear embedding of patches
-        masked_input = transformer.to_patch_embedding[-1](masked_input)
+        masked_input = self.patch_to_emb(masked_input)
 
         # add cls token to input sequence
         b, n, _ = masked_input.shape

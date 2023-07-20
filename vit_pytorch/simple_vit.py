@@ -94,6 +94,12 @@ class SimpleViT(nn.Module):
             nn.LayerNorm(dim),
         )
 
+        self.pos_embedding = posemb_sincos_2d(
+            h = image_height // patch_height,
+            w = image_width // patch_width,
+            dim = dim,
+        ) 
+
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 
         self.to_latent = nn.Identity()

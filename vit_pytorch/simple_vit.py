@@ -84,7 +84,6 @@ class SimpleViT(nn.Module):
 
         assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
 
-        num_patches = (image_height // patch_height) * (image_width // patch_width)
         patch_dim = channels * patch_height * patch_width
 
         self.to_patch_embedding = nn.Sequential(

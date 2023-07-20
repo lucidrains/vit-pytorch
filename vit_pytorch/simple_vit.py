@@ -109,11 +109,10 @@ class SimpleViT(nn.Module):
         )
 
     def forward(self, img):
-        *_, h, w, dtype = *img.shape, img.dtype
+        device = img.device
 
         x = self.to_patch_embedding(img)
-        pe = posemb_sincos_2d(x)
-        x = rearrange(x, 'b ... d -> b (...) d') + pe
+        x += self.pos_embedding.to(device)
 
         x = self.transformer(x)
         x = x.mean(dim = 1)

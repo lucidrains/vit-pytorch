@@ -14,6 +14,9 @@ from einops.layers.torch import Rearrange
 def exists(val):
     return val is not None
 
+def default(val, d):
+    return val if exists(val) else d
+
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
@@ -69,17 +72,26 @@ class Attention(nn.Module):
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+        self.to_q = nn.Linear(dim, inner_dim, bias = False)
+        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, dim, bias = False),
             nn.Dropout(dropout)
         )
 
-    def forward(self, x, mask = None, attn_mask = None):
+    def forward(
+        self,
+        x,
+        context = None,
+        mask = None,
+        attn_mask = None
+    ):
         x = self.norm(x)
+        kv_input = default(context, x)
 
-        qkv = self.to_qkv(x).chunk(3, dim = -1)
+        qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
+
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
         q = self.q_norm(q)
@@ -111,6 +123,8 @@ class Transformer(nn.Module):
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
+        self.norm = LayerNorm(dim)
+
     def forward(
         self,
         x,
@@ -121,7 +135,7 @@ class Transformer(nn.Module):
             x = attn(x, mask = mask, attn_mask = attn_mask) + x
             x = ff(x) + x
 
-        return x
+        return self.norm(x)
 
 class NaViT(nn.Module):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
@@ -148,6 +162,13 @@ class NaViT(nn.Module):
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+
+        # final attention pooling queries
+
+        self.attn_pool_queries = nn.Parameter(torch.randn(dim))
+        self.attn_pool = Attention(dim = dim, dim_head = dim_head, heads = heads)
+
+        # output to logits
 
         self.to_latent = nn.Identity()
 
@@ -209,7 +230,7 @@ class NaViT(nn.Module):
         # derive key padding mask
 
         lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)
-        max_length = arange(lengths.max().item())
+        max_length = arange(lengths.amax().item())
         key_pad_mask = rearrange(lengths, 'b -> b 1') <= rearrange(max_length, 'n -> 1 n')
 
         # derive attention mask, and combine with key padding mask from above
@@ -225,7 +246,7 @@ class NaViT(nn.Module):
 
         # need to know how many images for final attention pooling
 
-        num_images = torch.tensor(num_images, device = device, dtype = torch.long)
+        num_images = torch.tensor(num_images, device = device, dtype = torch.long)        
 
         # to patches
 
@@ -248,7 +269,37 @@ class NaViT(nn.Module):
 
         x = self.transformer(x, attn_mask = attn_mask)
 
-        x = x.mean(dim = 1)
+        # do attention pooling at the end
+
+        max_queries = num_images.amax().item()
+
+        queries = repeat(self.attn_pool_queries, 'd -> b n d', n = max_queries, b = x.shape[0])
+
+        # attention pool mask
+
+        image_id_arange = arange(max_queries)
+
+        attn_pool_mask = rearrange(image_id_arange, 'i -> i 1') == rearrange(batched_image_ids, 'b j -> b 1 j')
+
+        attn_pool_mask = attn_pool_mask & rearrange(key_pad_mask, 'b j -> b 1 j')
+
+        attn_pool_mask = rearrange(attn_pool_mask, 'b i j -> b 1 i j')
+
+        # attention pool
+
+        x = self.attn_pool(queries, context = x, attn_mask = attn_pool_mask) + queries
+
+        x = rearrange(x, 'b n d -> (b n) d')
+
+        # each batch element may not have same amount of images
+
+        is_images = image_id_arange < rearrange(num_images, 'b -> b 1')
+        is_images = rearrange(is_images, 'b n -> (b n)')
+
+        x = x[is_images]
+
+        # project out to logits
 
         x = self.to_latent(x)
+
         return self.mlp_head(x)

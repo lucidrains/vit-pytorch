@@ -140,7 +140,7 @@ img = torch.randn(1, 3, 256, 256)
 preds = v(img) # (1, 1000)
 ```
 
-## NaViT (wip)
+## NaViT
 
 <img src="./images/na_vit.png" width="450px"></img>
 
@@ -164,9 +164,18 @@ v = NaViT(
     emb_dropout = 0.1
 )
 
-img = torch.randn(1, 3, 256, 256)
+# 5 images of different resolutions - List[List[Tensor]]
 
-preds = v(img) # (1, 1000)
+# for now, you'll have to correctly place images in same batch element as to not exceed maximum allowed sequence length for self-attention w/ masking
+
+images = [
+    [torch.randn(3, 256, 256), torch.randn(3, 128, 128)],
+    [torch.randn(3, 128, 256), torch.randn(3, 256, 128)],
+    [torch.randn(3, 64, 256)]
+]
+
+preds = v(images) # (5, 1000) - 5, because 5 images of different resolution above
+
 ```
 
 ## Distillation

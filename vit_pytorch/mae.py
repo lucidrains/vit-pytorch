@@ -49,7 +49,10 @@ class MAE(nn.Module):
         # patch to encoder tokens and add positions
 
         tokens = self.patch_to_emb(patches)
-        tokens = tokens + self.encoder.pos_embedding[:, 1:(num_patches + 1)]
+        if self.encoder.pool == "cls":
+            tokens += self.encoder.pos_embedding[:, 1:(num_patches + 1)]
+        elif self.encoder.pool == "mean":
+            tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype) 
 
         # calculate of patches needed to be masked, and get random indices, dividing it up for mask vs unmasked
 

@@ -1,11 +1,17 @@
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import nn, Tensor
+from torch.nn.utils.rnn import pad_sequence
+
+from typing import List
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
 # helpers
+
+def exists(val):
+    return val is not None
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
@@ -69,7 +75,7 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         )
 
-    def forward(self, x):
+    def forward(self, x, mask = None):
         x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim = -1)
@@ -79,6 +85,10 @@ class Attention(nn.Module):
         k = self.k_norm(k)
 
         dots = torch.matmul(q, k.transpose(-1, -2))
+
+        if exists(mask):
+            mask = rearrange(mask, 'b j -> b 1 1 j')
+            dots = dots.masked_fill(~mask, -torch.finfo(dots.dtype).max)
 
         attn = self.attend(dots)
         attn = self.dropout(attn)
@@ -97,9 +107,9 @@ class Transformer(nn.Module):
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x):
+    def forward(self, x, mask = None):
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x = attn(x, mask = mask) + x
             x = ff(x) + x
 
         return x
@@ -114,15 +124,17 @@ class NaViT(nn.Module):
         patch_height_dim, patch_width_dim = (image_height // patch_size), (image_width // patch_size)
         patch_dim = channels * (patch_size ** 2)
 
+        self.channels = channels
+        self.patch_size = patch_size
+
         self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size),
             LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
             LayerNorm(dim),
         )
 
-        self.pos_embed_height = nn.Parameter(torch.randn(patch_height_dim, 1, dim))
-        self.pos_embed_width = nn.Parameter(torch.randn(1, patch_width_dim, dim))
+        self.pos_embed_height = nn.Parameter(torch.randn(patch_height_dim, dim))
+        self.pos_embed_width = nn.Parameter(torch.randn(patch_width_dim, dim))
 
         self.dropout = nn.Dropout(emb_dropout)
 
@@ -135,19 +147,82 @@ class NaViT(nn.Module):
             nn.Linear(dim, num_classes, bias = False)
         )
 
-    def forward(self, img):
-        x = self.to_patch_embedding(img)
-        b, h, w, _ = x.shape
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+    def forward(
+        self,
+        batched_images: List[List[Tensor]] # assume different resolution images already grouped correctly
+    ):
+        p, c, device = self.patch_size, self.channels, self.device
+
+        # process images into variable lengthed sequences with attention mask
+
+        num_images = []
+        batched_sequences = []
+        batched_positions = []
+
+        for images in batched_images:
+            num_images.append(len(images))
+
+            sequences = []
+            positions = []
+
+            for image in images:
+                assert image.ndim ==3 and image.shape[0] == c
+                image_dims = image.shape[-2:]
+                assert all([divisible_by(dim, p) for dim in image_dims]), f'height and width {image_dims} of images must be divisible by patch size {p}'
+
+                ph, pw = map(lambda dim: dim // p, image_dims)
+
+                pos = torch.stack(torch.meshgrid((
+                    torch.arange(ph, device = device),
+                    torch.arange(pw, device = device)
+                ), indexing = 'ij'), dim = -1)
+
+                pos = rearrange(pos, 'h w c -> (h w) c')
+                seq = rearrange(image, 'c (h p1) (w p2) -> (h w) (c p1 p2)', p1 = p, p2 = p)
+
+                sequences.append(seq)
+                positions.append(pos)
+
+            batched_sequences.append(torch.cat(sequences, dim = 0))
+            batched_positions.append(torch.cat(positions, dim = 0))
+
+
+        # derive key padding mask
+
+        lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)
+        max_length = torch.arange(lengths.max().item(), device = device)
+
+        mask = rearrange(lengths, 'b -> b 1') <= rearrange(max_length, 'n -> 1 n')
+
+        patches = pad_sequence(batched_sequences, batch_first = True)
+        patch_positions = pad_sequence(batched_positions, batch_first = True)
+
+        num_images = torch.tensor(num_images, device = device, dtype = torch.long)
+
+        # to patches
+
+        x = self.to_patch_embedding(patches)        
 
         # factorized 2d absolute positional embedding
 
-        x = x + self.pos_embed_height[:h, :] + self.pos_embed_width[:, :w]
+        h_indices, w_indices = patch_positions.unbind(dim = -1)
 
-        x = rearrange(x, 'b h w d -> b (h w) d')
+        h_pos = self.pos_embed_height[h_indices]
+        w_pos = self.pos_embed_width[w_indices]
+
+        x = x + h_pos + w_pos
+
+        # embed dropout
 
         x = self.dropout(x)
 
-        x = self.transformer(x)
+        # attention
+
+        x = self.transformer(x, mask = mask)
 
         x = x.mean(dim = 1)
 

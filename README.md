@@ -7,6 +7,7 @@
 - [Usage](#usage)
 - [Parameters](#parameters)
 - [Simple ViT](#simple-vit)
+- [NaViT](#na-vit)
 - [Distillation](#distillation)
 - [Deep ViT](#deep-vit)
 - [CaiT](#cait)
@@ -137,6 +138,44 @@ v = SimpleViT(
 img = torch.randn(1, 3, 256, 256)
 
 preds = v(img) # (1, 1000)
+```
+
+## NaViT
+
+<img src="./images/na_vit.png" width="450px"></img>
+
+<a href="https://arxiv.org/abs/2307.06304">This paper</a> proposes to leverage the flexibility of attention and masking for variable lengthed sequences to train images of multiple resolution, packed into a single batch. They demonstrate much faster training and improved accuracies, with the only cost being extra complexity in the architecture and dataloading. They use factorized 2d positional encodings, token dropping, as well as query-key normalization.
+
+You can use it as follows
+
+```python
+import torch
+from vit_pytorch.na_vit import NaViT
+
+v = NaViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+
+# 5 images of different resolutions - List[List[Tensor]]
+
+# for now, you'll have to correctly place images in same batch element as to not exceed maximum allowed sequence length for self-attention w/ masking
+
+images = [
+    [torch.randn(3, 256, 256), torch.randn(3, 128, 128)],
+    [torch.randn(3, 128, 256), torch.randn(3, 256, 128)],
+    [torch.randn(3, 64, 256)]
+]
+
+preds = v(images) # (5, 1000) - 5, because 5 images of different resolution above
+
 ```
 
 ## Distillation
@@ -1931,6 +1970,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
     publisher = {arXiv},
     year    = {2023},
     copyright = {Creative Commons Attribution 4.0 International}
+}
+```
+
+```bibtex
+@inproceedings{Dehghani2023PatchNP,
+    title   = {Patch n' Pack: NaViT, a Vision Transformer for any Aspect Ratio and Resolution},
+    author  = {Mostafa Dehghani and Basil Mustafa and Josip Djolonga and Jonathan Heek and Matthias Minderer and Mathilde Caron and Andreas Steiner and Joan Puigcerver and Robert Geirhos and Ibrahim M. Alabdulmohsin and Avital Oliver and Piotr Padlewski and Alexey A. Gritsenko and Mario Luvci'c and Neil Houlsby},
+    year    = {2023}
 }
 ```
 

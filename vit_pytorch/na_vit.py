@@ -75,7 +75,7 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         )
 
-    def forward(self, x, mask = None):
+    def forward(self, x, mask = None, attn_mask = None):
         x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim = -1)
@@ -89,6 +89,9 @@ class Attention(nn.Module):
         if exists(mask):
             mask = rearrange(mask, 'b j -> b 1 1 j')
             dots = dots.masked_fill(~mask, -torch.finfo(dots.dtype).max)
+
+        if exists(attn_mask):
+            dots = dots.masked_fill(~attn_mask, -torch.finfo(dots.dtype).max)
 
         attn = self.attend(dots)
         attn = self.dropout(attn)
@@ -107,9 +110,14 @@ class Transformer(nn.Module):
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x, mask = None):
+    def forward(
+        self,
+        x,
+        mask = None,
+        attn_mask = None
+    ):
         for attn, ff in self.layers:
-            x = attn(x, mask = mask) + x
+            x = attn(x, mask = mask, attn_mask = attn_mask) + x
             x = ff(x) + x
 
         return x
@@ -162,14 +170,16 @@ class NaViT(nn.Module):
         num_images = []
         batched_sequences = []
         batched_positions = []
+        batched_image_ids = []
 
         for images in batched_images:
             num_images.append(len(images))
 
             sequences = []
             positions = []
+            image_ids = torch.empty((0,), device = device, dtype = torch.long)
 
-            for image in images:
+            for image_id, image in enumerate(images):
                 assert image.ndim ==3 and image.shape[0] == c
                 image_dims = image.shape[-2:]
                 assert all([divisible_by(dim, p) for dim in image_dims]), f'height and width {image_dims} of images must be divisible by patch size {p}'
@@ -184,22 +194,32 @@ class NaViT(nn.Module):
                 pos = rearrange(pos, 'h w c -> (h w) c')
                 seq = rearrange(image, 'c (h p1) (w p2) -> (h w) (c p1 p2)', p1 = p, p2 = p)
 
+                image_ids = F.pad(image_ids, (0, seq.shape[-2]), value = image_id)
                 sequences.append(seq)
                 positions.append(pos)
 
+            batched_image_ids.append(image_ids)
             batched_sequences.append(torch.cat(sequences, dim = 0))
             batched_positions.append(torch.cat(positions, dim = 0))
-
 
         # derive key padding mask
 
         lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)
         max_length = torch.arange(lengths.max().item(), device = device)
+        key_pad_mask = rearrange(lengths, 'b -> b 1') <= rearrange(max_length, 'n -> 1 n')
 
-        mask = rearrange(lengths, 'b -> b 1') <= rearrange(max_length, 'n -> 1 n')
+        # derive attention mask, and combine with key padding mask from above
+
+        batched_image_ids = pad_sequence(batched_image_ids, batch_first = True)
+        attn_mask = rearrange(batched_image_ids, 'b i -> b 1 i 1') == rearrange(batched_image_ids, 'b j -> b 1 1 j')
+        attn_mask = attn_mask & rearrange(key_pad_mask, 'b j -> b 1 1 j')
+
+        # combine patched images as well as the patched width / height positions for 2d positional embedding
 
         patches = pad_sequence(batched_sequences, batch_first = True)
         patch_positions = pad_sequence(batched_positions, batch_first = True)
+
+        # need to know how many images for final attention pooling
 
         num_images = torch.tensor(num_images, device = device, dtype = torch.long)
 
@@ -222,7 +242,7 @@ class NaViT(nn.Module):
 
         # attention
 
-        x = self.transformer(x, mask = mask)
+        x = self.transformer(x, attn_mask = attn_mask)
 
         x = x.mean(dim = 1)
 

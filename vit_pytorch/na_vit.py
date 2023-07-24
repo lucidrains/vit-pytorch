@@ -10,6 +10,9 @@ from einops.layers.torch import Rearrange
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
+def divisible_by(numer, denom):
+    return (numer % denom) == 0
+
 # normalization
 # they use layernorm without bias, something that pytorch does not offer
 
@@ -36,26 +39,20 @@ class RMSNorm(nn.Module):
 
 # feedforward
 
-class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout = 0.):
-        super().__init__()
-        self.net = nn.Sequential(
-            LayerNorm(dim),
-            nn.Linear(dim, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, dim),
-            nn.Dropout(dropout)
-        )
-    def forward(self, x):
-        return self.net(x)
+def FeedForward(dim, hidden_dim, dropout = 0.):
+    return nn.Sequential(
+        LayerNorm(dim),
+        nn.Linear(dim, hidden_dim),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(hidden_dim, dim),
+        nn.Dropout(dropout)
+    )
 
 class Attention(nn.Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
-        project_out = not (heads == 1 and dim_head == dim)
-
         self.heads = heads
         self.norm = LayerNorm(dim)
 
@@ -68,9 +65,9 @@ class Attention(nn.Module):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = nn.Sequential(
-            nn.Linear(inner_dim, dim),
+            nn.Linear(inner_dim, dim, bias = False),
             nn.Dropout(dropout)
-        ) if project_out else nn.Identity()
+        )
 
     def forward(self, x):
         x = self.norm(x)
@@ -108,31 +105,29 @@ class Transformer(nn.Module):
         return x
 
 class NaViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
 
-        assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
+        assert divisible_by(image_height, patch_size) and divisible_by(image_width, patch_size), 'Image dimensions must be divisible by the patch size.'
 
-        num_patches = (image_height // patch_height) * (image_width // patch_width)
-        patch_dim = channels * patch_height * patch_width
-        assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
+        patch_height_dim, patch_width_dim = (image_height // patch_size), (image_width // patch_size)
+        patch_dim = channels * (patch_size ** 2)
 
         self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size),
             LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
             LayerNorm(dim),
         )
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
-        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
+        self.pos_embed_height = nn.Parameter(torch.randn(patch_height_dim, 1, dim))
+        self.pos_embed_width = nn.Parameter(torch.randn(1, patch_width_dim, dim))
+
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
-        self.pool = pool
         self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(
@@ -142,16 +137,19 @@ class NaViT(nn.Module):
 
     def forward(self, img):
         x = self.to_patch_embedding(img)
-        b, n, _ = x.shape
+        b, h, w, _ = x.shape
 
-        cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
-        x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding[:, :(n + 1)]
+        # factorized 2d absolute positional embedding
+
+        x = x + self.pos_embed_height[:h, :] + self.pos_embed_width[:, :w]
+
+        x = rearrange(x, 'b h w d -> b (h w) d')
+
         x = self.dropout(x)
 
         x = self.transformer(x)
 
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+        x = x.mean(dim = 1)
 
         x = self.to_latent(x)
         return self.mlp_head(x)

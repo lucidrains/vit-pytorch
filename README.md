@@ -7,7 +7,7 @@
 - [Usage](#usage)
 - [Parameters](#parameters)
 - [Simple ViT](#simple-vit)
-- [NaViT](#na-vit)
+- [NaViT](#navit)
 - [Distillation](#distillation)
 - [Deep ViT](#deep-vit)
 - [CaiT](#cait)
@@ -142,7 +142,7 @@ preds = v(img) # (1, 1000)
 
 ## NaViT
 
-<img src="./images/na_vit.png" width="450px"></img>
+<img src="./images/navit.png" width="450px"></img>
 
 <a href="https://arxiv.org/abs/2307.06304">This paper</a> proposes to leverage the flexibility of attention and masking for variable lengthed sequences to train images of multiple resolution, packed into a single batch. They demonstrate much faster training and improved accuracies, with the only cost being extra complexity in the architecture and dataloading. They use factorized 2d positional encodings, token dropping, as well as query-key normalization.
 

@@ -161,7 +161,8 @@ v = NaViT(
     heads = 16,
     mlp_dim = 2048,
     dropout = 0.1,
-    emb_dropout = 0.1
+    emb_dropout = 0.1,
+    token_dropout_prob = 0.1  # token dropout of 10% (keep 90% of tokens)
 )
 
 # 5 images of different resolutions - List[List[Tensor]]

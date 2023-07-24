@@ -77,7 +77,7 @@ class Transformer(nn.Module):
         return x
 
 class SimpleViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dtype = torch.float32):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -97,7 +97,6 @@ class SimpleViT(nn.Module):
             h = image_height // patch_height,
             w = image_width // patch_width,
             dim = dim,
-            dtype = dtype,
         ) 
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
@@ -113,7 +112,7 @@ class SimpleViT(nn.Module):
         device = img.device
 
         x = self.to_patch_embedding(img)
-        x += self.pos_embedding.to(device)
+        x += self.pos_embedding.to(device, dtype=x.dtype)
 
         x = self.transformer(x)
         x = x.mean(dim = 1)

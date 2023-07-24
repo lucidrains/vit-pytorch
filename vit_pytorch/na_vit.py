@@ -1,9 +1,10 @@
+from functools import partial
+from typing import List
+
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torch.nn.utils.rnn import pad_sequence
-
-from typing import List
+from torch.nn.utils.rnn import pad_sequence as orig_pad_sequence
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
@@ -165,6 +166,9 @@ class NaViT(nn.Module):
     ):
         p, c, device = self.patch_size, self.channels, self.device
 
+        arange = partial(torch.arange, device = device)
+        pad_sequence = partial(orig_pad_sequence, batch_first = True)
+
         # process images into variable lengthed sequences with attention mask
 
         num_images = []
@@ -187,8 +191,8 @@ class NaViT(nn.Module):
                 ph, pw = map(lambda dim: dim // p, image_dims)
 
                 pos = torch.stack(torch.meshgrid((
-                    torch.arange(ph, device = device),
-                    torch.arange(pw, device = device)
+                    arange(ph),
+                    arange(pw)
                 ), indexing = 'ij'), dim = -1)
 
                 pos = rearrange(pos, 'h w c -> (h w) c')
@@ -205,19 +209,19 @@ class NaViT(nn.Module):
         # derive key padding mask
 
         lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)
-        max_length = torch.arange(lengths.max().item(), device = device)
+        max_length = arange(lengths.max().item())
         key_pad_mask = rearrange(lengths, 'b -> b 1') <= rearrange(max_length, 'n -> 1 n')
 
         # derive attention mask, and combine with key padding mask from above
 
-        batched_image_ids = pad_sequence(batched_image_ids, batch_first = True)
+        batched_image_ids = pad_sequence(batched_image_ids)
         attn_mask = rearrange(batched_image_ids, 'b i -> b 1 i 1') == rearrange(batched_image_ids, 'b j -> b 1 1 j')
         attn_mask = attn_mask & rearrange(key_pad_mask, 'b j -> b 1 1 j')
 
         # combine patched images as well as the patched width / height positions for 2d positional embedding
 
-        patches = pad_sequence(batched_sequences, batch_first = True)
-        patch_positions = pad_sequence(batched_positions, batch_first = True)
+        patches = pad_sequence(batched_sequences)
+        patch_positions = pad_sequence(batched_positions)
 
         # need to know how many images for final attention pooling
 

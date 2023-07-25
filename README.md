@@ -179,6 +179,24 @@ preds = v(images) # (5, 1000) - 5, because 5 images of different resolution abov
 
 ```
 
+Or if you would rather that the framework auto group the images into variable lengthed sequences that do not exceed a certain max length
+
+```python
+images = [
+    torch.randn(3, 256, 256),
+    torch.randn(3, 128, 128),
+    torch.randn(3, 128, 256),
+    torch.randn(3, 256, 128),
+    torch.randn(3, 64, 256)
+]
+
+preds = v(
+    images,
+    group_images = True,
+    group_max_seq_len = 64
+) # (5, 1000)
+```
+
 ## Distillation
 
 <img src="./images/distill.png" width="300px"></img>

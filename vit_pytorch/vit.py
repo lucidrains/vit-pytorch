@@ -103,14 +103,12 @@ class ViT(nn.Module):
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+        self.norm = nn.LayerNorm(dim)
 
         self.pool = pool
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, num_classes)
-        )
+        self.mlp_head = nn.Linear(dim, num_classes)
 
     def forward(self, img):
         x = self.to_patch_embedding(img)
@@ -122,6 +120,7 @@ class ViT(nn.Module):
         x = self.dropout(x)
 
         x = self.transformer(x)
+        x = self.norm(x)
 
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 

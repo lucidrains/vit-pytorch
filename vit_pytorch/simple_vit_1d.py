@@ -62,6 +62,7 @@ class Attention(nn.Module):
 class Transformer(nn.Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim):
         super().__init__()
+        self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
@@ -72,7 +73,7 @@ class Transformer(nn.Module):
         for attn, ff in self.layers:
             x = attn(x) + x
             x = ff(x) + x
-        return x
+        return self.norm(x)
 
 class SimpleViT(nn.Module):
     def __init__(self, *, seq_len, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
@@ -93,10 +94,7 @@ class SimpleViT(nn.Module):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 
         self.to_latent = nn.Identity()
-        self.linear_head = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, num_classes)
-        )
+        self.linear_head = nn.Linear(dim, num_classes)
 
     def forward(self, series):
         *_, n, dtype = *series.shape, series.dtype

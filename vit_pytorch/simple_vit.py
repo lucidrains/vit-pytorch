@@ -105,7 +105,7 @@ class SimpleViT(nn.Module):
         self.pool = "mean"
         self.to_latent = nn.Identity()
 
-        self.linear_head = nn.LayerNorm(dim)
+        self.linear_head = nn.Linear(dim, num_classes)
 
     def forward(self, img):
         device = img.device

@@ -19,20 +19,20 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class PreNormResidual(nn.Module):
+class Residual(nn.Module):
     def __init__(self, dim, fn):
         super().__init__()
-        self.norm = nn.LayerNorm(dim)
         self.fn = fn
 
     def forward(self, x):
-        return self.fn(self.norm(x)) + x
+        return self.fn(x) + x
 
 class FeedForward(nn.Module):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
         self.net = nn.Sequential(
+            nn.LayerNorm(dim),
             nn.Linear(dim, inner_dim),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -132,6 +132,7 @@ class Attention(nn.Module):
         self.heads = dim // dim_head
         self.scale = dim_head ** -0.5
 
+        self.norm = nn.LayerNorm(dim)
         self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
 
         self.attend = nn.Sequential(
@@ -159,6 +160,8 @@ class Attention(nn.Module):
 
     def forward(self, x):
         batch, height, width, window_height, window_width, _, device, h = *x.shape, x.device, self.heads
+
+        x = self.norm(x)
 
         # flatten
 
@@ -259,13 +262,13 @@ class MaxViT(nn.Module):
                         shrinkage_rate = mbconv_shrinkage_rate
                     ),
                     Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w),  # block-like attention
-                    PreNormResidual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
-                    PreNormResidual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
+                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
+                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
                     Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'),
 
                     Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w),  # grid-like attention
-                    PreNormResidual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
-                    PreNormResidual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
+                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
+                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
                     Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)'),
                 )
 

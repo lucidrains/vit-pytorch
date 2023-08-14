@@ -44,18 +44,11 @@ class LayerScale(nn.Module):
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) * self.scale
 
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        self.fn = fn
-    def forward(self, x, **kwargs):
-        return self.fn(self.norm(x), **kwargs)
-
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
+            nn.LayerNorm(dim),
             nn.Linear(dim, hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -72,6 +65,7 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
+        self.norm = nn.LayerNorm(dim)
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
@@ -89,6 +83,7 @@ class Attention(nn.Module):
     def forward(self, x, context = None):
         b, n, _, h = *x.shape, self.heads
 
+        x = self.norm(x)
         context = x if not exists(context) else torch.cat((x, context), dim = 1)
 
         qkv = (self.to_q(x), *self.to_kv(context).chunk(2, dim = -1))
@@ -115,8 +110,8 @@ class Transformer(nn.Module):
 
         for ind in range(depth):
             self.layers.append(nn.ModuleList([
-                LayerScale(dim, PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)), depth = ind + 1),
-                LayerScale(dim, PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout)), depth = ind + 1)
+                LayerScale(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout), depth = ind + 1),
+                LayerScale(dim, FeedForward(dim, mlp_dim, dropout = dropout), depth = ind + 1)
             ]))
     def forward(self, x, context = None):
         layers = dropout_layers(self.layers, dropout = self.layer_dropout)

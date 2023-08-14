@@ -42,20 +42,11 @@ class LayerNorm(nn.Module):
         mean = torch.mean(x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.norm = LayerNorm(dim)
-        self.fn = fn
-
-    def forward(self, x, **kwargs):
-        x = self.norm(x)
-        return self.fn(x, **kwargs)
-
 class FeedForward(nn.Module):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
+            LayerNorm(dim),
             nn.Conv2d(dim, dim * mult, 1),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -99,6 +90,7 @@ class LocalAttention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
+        self.norm = LayerNorm(dim)
         self.to_q = nn.Conv2d(dim, inner_dim, 1, bias = False)
         self.to_kv = nn.Conv2d(dim, inner_dim * 2, 1, bias = False)
 
@@ -108,6 +100,8 @@ class LocalAttention(nn.Module):
         )
 
     def forward(self, fmap):
+        fmap = self.norm(fmap)
+
         shape, p = fmap.shape, self.patch_size
         b, n, x, y, h = *shape, self.heads
         x, y = map(lambda t: t // p, (x, y))
@@ -132,6 +126,8 @@ class GlobalAttention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
+        self.norm = LayerNorm(dim)
+
         self.to_q = nn.Conv2d(dim, inner_dim, 1, bias = False)
         self.to_kv = nn.Conv2d(dim, inner_dim * 2, k, stride = k, bias = False)
 
@@ -143,6 +139,8 @@ class GlobalAttention(nn.Module):
         )
 
     def forward(self, x):
+        x = self.norm(x)
+
         shape = x.shape
         b, n, _, y, h = *shape, self.heads
         q, k, v = (self.to_q(x), *self.to_kv(x).chunk(2, dim = 1))
@@ -164,10 +162,10 @@ class Transformer(nn.Module):
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Residual(PreNorm(dim, LocalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, patch_size = local_patch_size))) if has_local else nn.Identity(),
-                Residual(PreNorm(dim, FeedForward(dim, mlp_mult, dropout = dropout))) if has_local else nn.Identity(),
-                Residual(PreNorm(dim, GlobalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, k = global_k))),
-                Residual(PreNorm(dim, FeedForward(dim, mlp_mult, dropout = dropout)))
+                Residual(LocalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, patch_size = local_patch_size)) if has_local else nn.Identity(),
+                Residual(FeedForward(dim, mlp_mult, dropout = dropout)) if has_local else nn.Identity(),
+                Residual(GlobalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, k = global_k)),
+                Residual(FeedForward(dim, mlp_mult, dropout = dropout))
             ]))
     def forward(self, x):
         for local_attn, ff1, global_attn, ff2 in self.layers:

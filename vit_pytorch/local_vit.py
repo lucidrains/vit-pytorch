@@ -26,16 +26,6 @@ class ExcludeCLS(nn.Module):
         x = self.fn(x, **kwargs)
         return torch.cat((cls_token, x), dim = 1)
 
-# prenorm
-
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        self.fn = fn
-    def forward(self, x, **kwargs):
-        return self.fn(self.norm(x), **kwargs)
-
 # feed forward related classes
 
 class DepthWiseConv2d(nn.Module):
@@ -52,6 +42,7 @@ class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
+            nn.LayerNorm(dim),
             nn.Conv2d(dim, hidden_dim, 1),
             nn.Hardswish(),
             DepthWiseConv2d(hidden_dim, hidden_dim, 3, padding = 1),
@@ -77,6 +68,7 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
+        self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
@@ -88,6 +80,8 @@ class Attention(nn.Module):
 
     def forward(self, x):
         b, n, _, h = *x.shape, self.heads
+
+        x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
 
@@ -106,8 +100,8 @@ class Transformer(nn.Module):
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Residual(PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout))),
-                ExcludeCLS(Residual(PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout))))
+                Residual(Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)),
+                ExcludeCLS(Residual(FeedForward(dim, mlp_dim, dropout = dropout)))
             ]))
     def forward(self, x):
         for attn, ff in self.layers:

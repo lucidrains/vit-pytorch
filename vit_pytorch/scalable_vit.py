@@ -33,15 +33,6 @@ class ChanLayerNorm(nn.Module):
         mean = torch.mean(x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.norm = ChanLayerNorm(dim)
-        self.fn = fn
-
-    def forward(self, x):
-        return self.fn(self.norm(x))
-
 class Downsample(nn.Module):
     def __init__(self, dim_in, dim_out):
         super().__init__()
@@ -65,6 +56,7 @@ class FeedForward(nn.Module):
         super().__init__()
         inner_dim = dim * expansion_factor
         self.net = nn.Sequential(
+            ChanLayerNorm(dim),
             nn.Conv2d(dim, inner_dim, 1),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -92,6 +84,7 @@ class ScalableSelfAttention(nn.Module):
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
 
+        self.norm = ChanLayerNorm(dim)
         self.to_q = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
         self.to_k = nn.Conv2d(dim, dim_key * heads, reduction_factor, stride = reduction_factor, bias = False)
         self.to_v = nn.Conv2d(dim, dim_value * heads, reduction_factor, stride = reduction_factor, bias = False)
@@ -103,6 +96,8 @@ class ScalableSelfAttention(nn.Module):
 
     def forward(self, x):
         height, width, heads = *x.shape[-2:], self.heads
+
+        x = self.norm(x)
 
         q, k, v = self.to_q(x), self.to_k(x), self.to_v(x)
 
@@ -145,6 +140,7 @@ class InteractiveWindowedSelfAttention(nn.Module):
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
 
+        self.norm = ChanLayerNorm(dim)
         self.local_interactive_module = nn.Conv2d(dim_value * heads, dim_value * heads, 3, padding = 1)
 
         self.to_q = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
@@ -158,6 +154,8 @@ class InteractiveWindowedSelfAttention(nn.Module):
 
     def forward(self, x):
         height, width, heads, wsz = *x.shape[-2:], self.heads, self.window_size
+
+        x = self.norm(x)
 
         wsz_h, wsz_w = default(wsz, height), default(wsz, width)
         assert (height % wsz_h) == 0 and (width % wsz_w) == 0, f'height ({height}) or width ({width}) of feature map is not divisible by the window size ({wsz_h}, {wsz_w})'
@@ -217,11 +215,11 @@ class Transformer(nn.Module):
             is_first = ind == 0
 
             self.layers.append(nn.ModuleList([
-                PreNorm(dim, ScalableSelfAttention(dim, heads = heads, dim_key = ssa_dim_key, dim_value = ssa_dim_value, reduction_factor = ssa_reduction_factor, dropout = dropout)),
-                PreNorm(dim, FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout)),
+                ScalableSelfAttention(dim, heads = heads, dim_key = ssa_dim_key, dim_value = ssa_dim_value, reduction_factor = ssa_reduction_factor, dropout = dropout),
+                FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout),
                 PEG(dim) if is_first else None,
-                PreNorm(dim, FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout)),
-                PreNorm(dim, InteractiveWindowedSelfAttention(dim, heads = heads, dim_key = iwsa_dim_key, dim_value = iwsa_dim_value, window_size = iwsa_window_size, dropout = dropout))
+                FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout),
+                InteractiveWindowedSelfAttention(dim, heads = heads, dim_key = iwsa_dim_key, dim_value = iwsa_dim_value, window_size = iwsa_window_size, dropout = dropout)
             ]))
 
         self.norm = ChanLayerNorm(dim) if norm_output else nn.Identity()

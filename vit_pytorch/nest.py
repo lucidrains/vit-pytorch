@@ -24,19 +24,11 @@ class LayerNorm(nn.Module):
         mean = torch.mean(x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.norm = LayerNorm(dim)
-        self.fn = fn
-
-    def forward(self, x, **kwargs):
-        return self.fn(self.norm(x), **kwargs)
-
 class FeedForward(nn.Module):
     def __init__(self, dim, mlp_mult = 4, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
+            LayerNorm(dim),
             nn.Conv2d(dim, dim * mlp_mult, 1),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -54,6 +46,7 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
+        self.norm = LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
         self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
@@ -65,6 +58,8 @@ class Attention(nn.Module):
 
     def forward(self, x):
         b, c, h, w, heads = *x.shape, self.heads
+
+        x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim = 1)
         q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> b h (x y) d', h = heads), qkv)
@@ -93,8 +88,8 @@ class Transformer(nn.Module):
 
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                PreNorm(dim, Attention(dim, heads = heads, dropout = dropout)),
-                PreNorm(dim, FeedForward(dim, mlp_mult, dropout = dropout))
+                Attention(dim, heads = heads, dropout = dropout),
+                FeedForward(dim, mlp_mult, dropout = dropout)
             ]))
     def forward(self, x):
         *_, h, w = x.shape

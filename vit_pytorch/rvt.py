@@ -55,14 +55,6 @@ class DepthWiseConv2d(nn.Module):
 
 # helper classes
 
-class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        self.fn = fn
-    def forward(self, x, **kwargs):
-        return self.fn(self.norm(x), **kwargs)
-
 class SpatialConv(nn.Module):
     def __init__(self, dim_in, dim_out, kernel, bias = False):
         super().__init__()
@@ -86,6 +78,7 @@ class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0., use_glu = True):
         super().__init__()
         self.net = nn.Sequential(
+            nn.LayerNorm(dim),
             nn.Linear(dim, hidden_dim * 2 if use_glu else hidden_dim),
             GEGLU() if use_glu else nn.GELU(),
             nn.Dropout(dropout),
@@ -103,6 +96,7 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
+        self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
 
@@ -121,6 +115,9 @@ class Attention(nn.Module):
         b, n, _, h = *x.shape, self.heads
 
         to_q_kwargs = {'fmap_dims': fmap_dims} if self.use_ds_conv else {}
+
+        x = self.norm(x)
+
         q = self.to_q(x, **to_q_kwargs)
 
         qkv = (q, *self.to_kv(x).chunk(2, dim = -1))
@@ -162,8 +159,8 @@ class Transformer(nn.Module):
         self.pos_emb = AxialRotaryEmbedding(dim_head, max_freq = image_size)
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_rotary = use_rotary, use_ds_conv = use_ds_conv)),
-                PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout, use_glu = use_glu))
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_rotary = use_rotary, use_ds_conv = use_ds_conv),
+                FeedForward(dim, mlp_dim, dropout = dropout, use_glu = use_glu)
             ]))
     def forward(self, x, fmap_dims):
         pos_emb = self.pos_emb(x[:, 1:])

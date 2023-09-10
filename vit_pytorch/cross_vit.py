@@ -115,7 +115,7 @@ class CrossTransformer(nn.Module):
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
                 ProjectInOut(sm_dim, lg_dim, Attention(lg_dim, heads = heads, dim_head = dim_head, dropout = dropout)),
-                ProjectInOut(lg_dim, sm_dim, ttention(sm_dim, heads = heads, dim_head = dim_head, dropout = dropout))
+                ProjectInOut(lg_dim, sm_dim, Attention(sm_dim, heads = heads, dim_head = dim_head, dropout = dropout))
             ]))
 
     def forward(self, sm_tokens, lg_tokens):

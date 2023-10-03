@@ -1,3 +1,8 @@
+"""
+    Vision Transformers Need Registers
+    https://arxiv.org/abs/2309.16588
+"""
+
 import torch
 from torch import nn
 

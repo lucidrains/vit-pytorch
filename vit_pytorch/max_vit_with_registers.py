@@ -2,8 +2,10 @@ from functools import partial
 
 import torch
 from torch import nn, einsum
+import torch.nn.functional as F
+from torch.nn import Module, ModuleList, Sequential
 
-from einops import rearrange, repeat
+from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange, Reduce
 
 # helpers
@@ -14,42 +16,36 @@ def exists(val):
 def default(val, d):
     return val if exists(val) else d
 
+def pack_one(x, pattern):
+    return pack([x], pattern)
+
+def unpack_one(x, ps, pattern):
+    return unpack(x, ps, pattern)[0]
+
 def cast_tuple(val, length = 1):
     return val if isinstance(val, tuple) else ((val,) * length)
 
 # helper classes
 
-class Residual(nn.Module):
-    def __init__(self, dim, fn):
-        super().__init__()
-        self.fn = fn
-
-    def forward(self, x):
-        return self.fn(x) + x
-
-class FeedForward(nn.Module):
-    def __init__(self, dim, mult = 4, dropout = 0.):
-        super().__init__()
-        inner_dim = int(dim * mult)
-        self.net = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, inner_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(inner_dim, dim),
-            nn.Dropout(dropout)
-        )
-    def forward(self, x):
-        return self.net(x)
+def FeedForward(dim, mult = 4, dropout = 0.):
+    inner_dim = int(dim * mult)
+    return Sequential(
+        nn.LayerNorm(dim),
+        nn.Linear(dim, inner_dim),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(inner_dim, dim),
+        nn.Dropout(dropout)
+    )
 
 # MBConv
 
-class SqueezeExcitation(nn.Module):
+class SqueezeExcitation(Module):
     def __init__(self, dim, shrinkage_rate = 0.25):
         super().__init__()
         hidden_dim = int(dim * shrinkage_rate)
 
-        self.gate = nn.Sequential(
+        self.gate = Sequential(
             Reduce('b c h w -> b c', 'mean'),
             nn.Linear(dim, hidden_dim, bias = False),
             nn.SiLU(),
@@ -61,8 +57,7 @@ class SqueezeExcitation(nn.Module):
     def forward(self, x):
         return x * self.gate(x)
 
-
-class MBConvResidual(nn.Module):
+class MBConvResidual(Module):
     def __init__(self, fn, dropout = 0.):
         super().__init__()
         self.fn = fn
@@ -73,7 +68,7 @@ class MBConvResidual(nn.Module):
         out = self.dropsample(out)
         return out + x
 
-class Dropsample(nn.Module):
+class Dropsample(Module):
     def __init__(self, prob = 0):
         super().__init__()
         self.prob = prob
@@ -99,7 +94,7 @@ def MBConv(
     hidden_dim = int(expansion_rate * dim_out)
     stride = 2 if downsample else 1
 
-    net = nn.Sequential(
+    net = Sequential(
         nn.Conv2d(dim_in, hidden_dim, 1),
         nn.BatchNorm2d(hidden_dim),
         nn.GELU(),
@@ -118,7 +113,7 @@ def MBConv(
 
 # attention related classes
 
-class Attention(nn.Module):
+class Attention(Module):
     def __init__(
         self,
         dim,
@@ -159,13 +154,9 @@ class Attention(nn.Module):
         self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
 
     def forward(self, x):
-        batch, height, width, window_height, window_width, _, device, h = *x.shape, x.device, self.heads
+        device, h = x.device, self.heads
 
         x = self.norm(x)
-
-        # flatten
-
-        x = rearrange(x, 'b x y w1 w2 d -> (b x y) (w1 w2) d')
 
         # project for queries, keys, values
 
@@ -186,7 +177,12 @@ class Attention(nn.Module):
         # add positional bias
 
         bias = self.rel_pos_bias(self.rel_pos_indices)
-        sim = sim + rearrange(bias, 'i j h -> h i j')
+        bias = rearrange(bias, 'i j h -> h i j')
+
+        num_registers = sim.shape[-1] - bias.shape[-1]
+        bias = F.pad(bias, (num_registers, 0, num_registers, 0), value = 0.)
+
+        sim = sim + bias
 
         # attention
 
@@ -196,16 +192,12 @@ class Attention(nn.Module):
 
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
 
-        # merge heads
-
-        out = rearrange(out, 'b h (w1 w2) d -> b w1 w2 (h d)', w1 = window_height, w2 = window_width)
-
         # combine heads out
 
-        out = self.to_out(out)
-        return rearrange(out, '(b x y) ... -> b x y ...', x = height, y = width)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
 
-class MaxViT(nn.Module):
+class MaxViT(Module):
     def __init__(
         self,
         *,
@@ -218,7 +210,8 @@ class MaxViT(nn.Module):
         mbconv_expansion_rate = 4,
         mbconv_shrinkage_rate = 0.25,
         dropout = 0.1,
-        channels = 3
+        channels = 3,
+        num_register_tokens = 4
     ):
         super().__init__()
         assert isinstance(depth, tuple), 'depth needs to be tuple if integers indicating number of transformer blocks at that stage'
@@ -227,7 +220,7 @@ class MaxViT(nn.Module):
 
         dim_conv_stem = default(dim_conv_stem, dim)
 
-        self.conv_stem = nn.Sequential(
+        self.conv_stem = Sequential(
             nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1),
             nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)
         )
@@ -242,9 +235,11 @@ class MaxViT(nn.Module):
 
         self.layers = nn.ModuleList([])
 
-        # shorthand for window size for efficient block - grid like attention
+        # window size
 
-        w = window_size
+        self.window_size = window_size
+
+        self.register_tokens = nn.ParameterList([])
 
         # iterate through stages
 
@@ -253,26 +248,29 @@ class MaxViT(nn.Module):
                 is_first = stage_ind == 0
                 stage_dim_in = layer_dim_in if is_first else layer_dim
 
-                block = nn.Sequential(
-                    MBConv(
-                        stage_dim_in,
-                        layer_dim,
-                        downsample = is_first,
-                        expansion_rate = mbconv_expansion_rate,
-                        shrinkage_rate = mbconv_shrinkage_rate
-                    ),
-                    Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w),  # block-like attention
-                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
-                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
-                    Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'),
-
-                    Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w),  # grid-like attention
-                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
-                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
-                    Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)'),
+                conv = MBConv(
+                    stage_dim_in,
+                    layer_dim,
+                    downsample = is_first,
+                    expansion_rate = mbconv_expansion_rate,
+                    shrinkage_rate = mbconv_shrinkage_rate
                 )
 
-                self.layers.append(block)
+                block_attn = Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = window_size)
+                block_ff = FeedForward(dim = layer_dim, dropout = dropout)
+
+                grid_attn = Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = window_size)
+                grid_ff = FeedForward(dim = layer_dim, dropout = dropout)
+
+                register_tokens = nn.Parameter(torch.randn(num_register_tokens, layer_dim))
+
+                self.layers.append(ModuleList([
+                    conv,
+                    ModuleList([block_attn, block_ff]),
+                    ModuleList([grid_attn, grid_ff])
+                ]))
+
+                self.register_tokens.append(register_tokens)
 
         # mlp head out
 
@@ -283,9 +281,59 @@ class MaxViT(nn.Module):
         )
 
     def forward(self, x):
+        b, w = x.shape[0], self.window_size
+
         x = self.conv_stem(x)
 
-        for stage in self.layers:
-            x = stage(x)
+        for (conv, (block_attn, block_ff), (grid_attn, grid_ff)), register_tokens in zip(self.layers, self.register_tokens):
+            x = conv(x)
+
+            # block-like attention
+
+            x = rearrange(x, 'b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w)
+
+            # prepare register tokens
+
+            r = repeat(register_tokens, 'n d -> b x y n d', b = b, x = x.shape[1],y = x.shape[2])
+            r, register_batch_ps = pack_one(r, '* n d')
+
+            x, window_ps = pack_one(x, 'b x y * d')
+            x, batch_ps  = pack_one(x, '* n d')
+            x, register_ps = pack([r, x], 'b * d')
+
+            x = block_attn(x) + x
+            x = block_ff(x) + x
+
+            r, x = unpack(x, register_ps, 'b * d')
+
+            x = unpack_one(x, batch_ps, '* n d')
+            x = unpack_one(x, window_ps, 'b x y * d')
+            x = rearrange(x, 'b x y w1 w2 d -> b d (x w1) (y w2)')
+
+            r = unpack_one(r, register_batch_ps, '* n d')
+
+            # grid-like attention
+
+            x = rearrange(x, 'b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w)
+
+            # prepare register tokens
+
+            r = reduce(r, 'b x y n d -> b n d', 'mean')
+            r = repeat(r, 'b n d -> b x y n d', x = x.shape[1], y = x.shape[2])
+            r, register_batch_ps = pack_one(r, '* n d')
+
+            x, window_ps = pack_one(x, 'b x y * d')
+            x, batch_ps  = pack_one(x, '* n d')
+            x, register_ps = pack([r, x], 'b * d')
+
+            x = grid_attn(x) + x
+
+            r, x = unpack(x, register_ps, 'b * d')
+
+            x = grid_ff(x) + x
+
+            x = unpack_one(x, batch_ps, '* n d')
+            x = unpack_one(x, window_ps, 'b x y * d')
+            x = rearrange(x, 'b x y w1 w2 d -> b d (w1 x) (w2 y)')
 
         return self.mlp_head(x)

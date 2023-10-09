@@ -92,7 +92,7 @@ preds = v(img) # (1, 1000)
 - `image_size`: int.  
 Image size. If you have rectangular images, make sure your image size is the maximum of the width and height
 - `patch_size`: int.  
-Number of patches. `image_size` must be divisible by `patch_size`.  
+Size of patches. `image_size` must be divisible by `patch_size`.  
 The number of patches is: ` n = (image_size // patch_size) ** 2` and `n` **must be greater than 16**.
 - `num_classes`: int.  
 Number of classes to classify.

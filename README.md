@@ -25,6 +25,7 @@
 - [MaxViT](#maxvit)
 - [NesT](#nest)
 - [MobileViT](#mobilevit)
+- [XCiT](#xcit)
 - [Masked Autoencoder](#masked-autoencoder)
 - [Simple Masked Image Modeling](#simple-masked-image-modeling)
 - [Masked Patch Prediction](#masked-patch-prediction)
@@ -770,6 +771,38 @@ mbvit_xs = MobileViT(
 img = torch.randn(1, 3, 256, 256)
 
 pred = mbvit_xs(img) # (1, 1000)
+```
+
+## XCiT
+
+<img src="./images/xcit.png" width="400px"></img>
+
+This <a href="https://arxiv.org/abs/2106.09681">paper</a> introduces the cross correlation attention (abbreviated XCA). One can think of it as doing attention across the features dimension rather than the spatial one (another perspective would be a dynamic 1x1 convolution, the kernel being attention map defined by spatial correlations).
+
+Technically, this amounts to simply transposing the query, key, values before executing cosine similarity attention with learned temperature.
+
+```python
+import torch
+from vit_pytorch.xcit import XCiT
+
+v = XCiT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 12,                     # depth of xcit transformer
+    cls_depth = 2,                  # depth of cross attention of CLS tokens to patch, attention pool at end
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.1,
+    emb_dropout = 0.1,
+    layer_dropout = 0.05,           # randomly dropout 5% of the layers
+    local_patch_kernel_size = 3     # kernel size of the local patch interaction module (depthwise convs)
+)
+
+img = torch.randn(1, 3, 256, 256)
+
+preds = v(img) # (1, 1000)
 ```
 
 ## Simple Masked Image Modeling
@@ -2026,6 +2059,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
     author  = {Timoth'ee Darcet and Maxime Oquab and Julien Mairal and Piotr Bojanowski},
     year    = {2023},
     url     = {https://api.semanticscholar.org/CorpusID:263134283}
+}
+```
+
+```bibtex
+@inproceedings{ElNouby2021XCiTCI,
+    title   = {XCiT: Cross-Covariance Image Transformers},
+    author  = {Alaaeldin El-Nouby and Hugo Touvron and Mathilde Caron and Piotr Bojanowski and Matthijs Douze and Armand Joulin and Ivan Laptev and Natalia Neverova and Gabriel Synnaeve and Jakob Verbeek and Herv{\'e} J{\'e}gou},
+    booktitle = {Neural Information Processing Systems},
+    year    = {2021},
+    url     = {https://api.semanticscholar.org/CorpusID:235458262}
 }
 ```
 

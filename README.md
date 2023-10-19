@@ -777,7 +777,7 @@ pred = mbvit_xs(img) # (1, 1000)
 
 <img src="./images/xcit.png" width="400px"></img>
 
-This <a href="https://arxiv.org/abs/2106.09681">paper</a> introduces the cross correlation attention (abbreviated XCA). One can think of it as doing attention across the features dimension rather than the spatial one (another perspective would be a dynamic 1x1 convolution, the kernel being attention map defined by spatial correlations).
+This <a href="https://arxiv.org/abs/2106.09681">paper</a> introduces the cross covariance attention (abbreviated XCA). One can think of it as doing attention across the features dimension rather than the spatial one (another perspective would be a dynamic 1x1 convolution, the kernel being attention map defined by spatial correlations).
 
 Technically, this amounts to simply transposing the query, key, values before executing cosine similarity attention with learned temperature.
 

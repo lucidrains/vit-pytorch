@@ -140,12 +140,13 @@ class CvT(nn.Module):
         s3_heads = 6,
         s3_depth = 10,
         s3_mlp_mult = 4,
-        dropout = 0.
+        dropout = 0.,
+        channels = 3
     ):
         super().__init__()
         kwargs = dict(locals())
 
-        dim = 3
+        dim = channels
         layers = []
 
         for prefix in ('s1', 's2', 's3'):

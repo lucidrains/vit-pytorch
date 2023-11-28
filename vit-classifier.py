@@ -138,6 +138,7 @@ if __name__ == '__main__':
     n_folds = 10
     cur_dir = os.getcwd()
     print(f"Current Directory: {cur_dir}")
+    os.makedirs(os.path.join(cur_dir, "saved_models"), exist_ok=True)
 
     excelFilePath = os.path.join(cur_dir,'Fold_Split.xlsx')
     imgRootPath = "C:/Users/jrb187/PycharmProjects/FITNet/subset_data/2D_Images"
@@ -187,8 +188,8 @@ if __name__ == '__main__':
                 data = data.unsqueeze(1)
                 assert data.shape == (batch_size, 1, 24, 224, 224)
 
-                # data = data.to(device)
-                # label = label.to(device)
+                data = data.to(device)
+                label = label.to(device)
 
                 output = model(data)
                 loss = criterion(output, label)
@@ -200,6 +201,8 @@ if __name__ == '__main__':
                 acc = (output.argmax(dim=1) == label).float().mean()
                 epoch_accuracy += acc / len(train_loader)
                 epoch_loss += loss / len(train_loader)
+
+                torch.cuda.empty_cache()
 
             with torch.no_grad():
                 epoch_val_accuracy = 0
@@ -216,5 +219,8 @@ if __name__ == '__main__':
                     epoch_val_loss += val_loss / len(test_loader)
 
             print(
-                f"Epoch : {epoch + 1} - loss : {epoch_loss:.4f} - acc: {epoch_accuracy:.4f} - val_loss : {epoch_val_loss:.4f} - val_acc: {epoch_val_accuracy:.4f}\n"
+                f"Fold : {fold+1} - Epoch : {epoch + 1} - loss : {epoch_loss:.4f} - acc: {epoch_accuracy:.4f} - val_loss : {epoch_val_loss:.4f} - val_acc: {epoch_val_accuracy:.4f}\n"
             )
+
+        torch.save(model.state_dict(), './saved_models/{}.pt'.format("fold" + str(fold+1)))
+

@@ -1,5 +1,5 @@
 import torch
-from torch.fft import fft
+from torch.fft import fft2
 from torch import nn
 
 from einops import rearrange, reduce, pack, unpack
@@ -128,7 +128,7 @@ class SimpleViT(nn.Module):
         device, dtype = img.device, img.dtype
 
         x = self.to_patch_embedding(img)
-        freqs = torch.view_as_real(fft(img))
+        freqs = torch.view_as_real(fft2(img))
 
         f = self.to_freq_embedding(freqs)
 

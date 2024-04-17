@@ -1,11 +1,15 @@
 from setuptools import setup, find_packages
 
+with open('README.md') as f:
+    long_description = f.read()
+
 setup(
   name = 'vit-pytorch',
   packages = find_packages(exclude=['examples']),
   version = '1.6.5',
   license='MIT',
   description = 'Vision Transformer (ViT) - Pytorch',
+  long_description=long_description,
   long_description_content_type = 'text/markdown',
   author = 'Phil Wang',
   author_email = 'lucidrains@gmail.com',

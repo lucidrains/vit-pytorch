@@ -198,7 +198,7 @@ class NaViT(nn.Module):
             self.calc_token_dropout = token_dropout_prob
 
         elif isinstance(token_dropout_prob, (float, int)):
-            assert 0. < token_dropout_prob < 1.
+            assert 0. <= token_dropout_prob < 1.
             token_dropout_prob = float(token_dropout_prob)
             self.calc_token_dropout = lambda height, width: token_dropout_prob
 
@@ -249,7 +249,7 @@ class NaViT(nn.Module):
         group_images = False,
         group_max_seq_len = 2048
     ):
-        p, c, device, has_token_dropout = self.patch_size, self.channels, self.device, exists(self.calc_token_dropout)
+        p, c, device, has_token_dropout = self.patch_size, self.channels, self.device, exists(self.calc_token_dropout) and self.training
 
         arange = partial(torch.arange, device = device)
         pad_sequence = partial(orig_pad_sequence, batch_first = True)
@@ -260,7 +260,7 @@ class NaViT(nn.Module):
             batched_images = group_images_by_max_seq_len(
                 batched_images,
                 patch_size = self.patch_size,
-                calc_token_dropout = self.calc_token_dropout,
+                calc_token_dropout = self.calc_token_dropout if self.training else None,
                 max_seq_len = group_max_seq_len
             )
 
@@ -314,8 +314,8 @@ class NaViT(nn.Module):
         # derive key padding mask
 
         lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)
-        max_length = arange(lengths.amax().item())
-        key_pad_mask = rearrange(lengths, 'b -> b 1') <= rearrange(max_length, 'n -> 1 n')
+        seq_arange = arange(lengths.amax().item())
+        key_pad_mask = rearrange(seq_arange, 'n -> 1 n') < rearrange(lengths, 'b -> b 1')
 
         # derive attention mask, and combine with key padding mask from above
 

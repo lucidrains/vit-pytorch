@@ -3,12 +3,14 @@ from math import sqrt, pi, log
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
+from torch.cuda.amp import autocast
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
 # rotary embeddings
 
+@autocast(enabled = False)
 def rotate_every_two(x):
     x = rearrange(x, '... (d j) -> ... d j', j = 2)
     x1, x2 = x.unbind(dim = -1)
@@ -22,6 +24,7 @@ class AxialRotaryEmbedding(nn.Module):
         scales = torch.linspace(1., max_freq / 2, self.dim // 4)
         self.register_buffer('scales', scales)
 
+    @autocast(enabled = False)
     def forward(self, x):
         device, dtype, n = x.device, x.dtype, int(sqrt(x.shape[-2]))
 

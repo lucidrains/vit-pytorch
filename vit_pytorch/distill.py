@@ -127,7 +127,7 @@ class DistillWrapper(nn.Module):
         )
 
     def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
-        b, *_ = img.shape
+        
         alpha = alpha if exists(alpha) else self.alpha
         T = temperature if exists(temperature) else self.temperature
 

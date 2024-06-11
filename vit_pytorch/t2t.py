@@ -61,10 +61,7 @@ class T2TViT(nn.Module):
         self.pool = pool
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, num_classes)
-        )
+        self.mlp_head = nn.Linear(dim, num_classes)
 
     def forward(self, img):
         x = self.to_patch_embedding(img)

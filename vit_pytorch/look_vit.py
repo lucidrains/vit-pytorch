@@ -77,7 +77,7 @@ class Attention(Module):
 
         self.split_heads = Rearrange('b n (h d) -> b h n d', h = heads)
 
-        self.norm = LayerNorm(dim)
+        self.norm = LayerNorm(dim) if not reuse_attention else nn.Identity()
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
 

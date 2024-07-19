@@ -2072,4 +2072,20 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{Koner2024LookupViTCV,
+    title   = {LookupViT: Compressing visual information to a limited number of tokens},
+    author  = {Rajat Koner and Gagan Jain and Prateek Jain and Volker Tresp and Sujoy Paul},
+    year    = {2024},
+    url     = {https://api.semanticscholar.org/CorpusID:271244592}
+}
+```
+
+```bibtex
+@misc{Rubin2024,
+    author  = {Ohad Rubin},
+    url     = {https://medium.com/@ohadrubin/exploring-weight-decay-in-layer-normalization-challenges-and-a-reparameterization-solution-ad4d12c24950}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

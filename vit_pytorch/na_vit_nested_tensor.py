@@ -310,8 +310,6 @@ if __name__ == '__main__':
 
     # 5 images of different resolutions - List[Tensor]
 
-    # for now, you'll have to correctly place images in same batch element as to not exceed maximum allowed sequence length for self-attention w/ masking
-
     images = [
         torch.randn(3, 256, 256), torch.randn(3, 128, 128),
         torch.randn(3, 128, 256), torch.randn(3, 256, 128),

@@ -88,8 +88,8 @@ class Attention(Module):
 
         # qk norm for attention stability
 
-        query = self.query_norm(query.contiguous())
-        key = self.key_norm(key.contiguous())
+        query = self.query_norm(query)
+        key = self.key_norm(key)
 
         # attention
 

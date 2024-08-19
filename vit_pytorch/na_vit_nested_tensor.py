@@ -26,23 +26,11 @@ def pair(t):
 def divisible_by(numer, denom):
     return (numer % denom) == 0
 
-# normalization
-# they use layernorm without bias, something that pytorch does not offer
-
-class LayerNorm(Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.zeros(dim))
-        self.register_buffer('beta', torch.zeros(dim))
-
-    def forward(self, x):
-        return F.layer_norm(x, x.shape[-1:], self.gamma + 1., self.beta)
-
 # feedforward
 
 def FeedForward(dim, hidden_dim, dropout = 0.):
     return nn.Sequential(
-        LayerNorm(dim),
+        nn.LayerNorm(dim, bias = False),
         nn.Linear(dim, hidden_dim),
         nn.GELU(),
         nn.Dropout(dropout),
@@ -53,7 +41,7 @@ def FeedForward(dim, hidden_dim, dropout = 0.):
 class Attention(Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
-        self.norm = LayerNorm(dim)
+        self.norm = nn.LayerNorm(dim)
 
         dim_inner = heads * dim_head
         self.heads = heads
@@ -66,8 +54,8 @@ class Attention(Module):
         # in the paper, they employ qk rmsnorm, a way to stabilize attention
         # will use layernorm in place of rmsnorm, which has been shown to work in certain papers. requires l2norm on non-ragged dimension to be supported in nested tensors
 
-        self.query_norm = LayerNorm(dim_head)
-        self.key_norm = LayerNorm(dim_head)
+        self.query_norm = nn.LayerNorm(dim_head, bias = False)
+        self.key_norm = nn.LayerNorm(dim_head, bias = False)
 
         self.dropout = dropout
 
@@ -100,8 +88,8 @@ class Attention(Module):
 
         # qk norm for attention stability
 
-        query = self.query_norm(query)
-        key = self.key_norm(key)
+        query = self.query_norm(query.contiguous())
+        key = self.key_norm(key.contiguous())
 
         # attention
 
@@ -127,7 +115,7 @@ class Transformer(Module):
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-        self.norm = LayerNorm(dim)
+        self.norm = nn.LayerNorm(dim)
 
     def forward(self, x):
 
@@ -175,9 +163,9 @@ class NaViT(Module):
         self.to_patches = Rearrange('c (h p1) (w p2) -> h w (c p1 p2)', p1 = patch_size, p2 = patch_size)
 
         self.to_patch_embedding = nn.Sequential(
-            LayerNorm(patch_dim),
+            nn.LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
-            LayerNorm(dim),
+            nn.LayerNorm(dim),
         )
 
         self.pos_embed_height = nn.Parameter(torch.randn(patch_height_dim, dim))
@@ -197,7 +185,7 @@ class NaViT(Module):
         self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(
-            LayerNorm(dim),
+            nn.LayerNorm(dim),
             nn.Linear(dim, num_classes, bias = False)
         )
 
@@ -254,6 +242,7 @@ class NaViT(Module):
 
         # add all height and width factorized positions
 
+
         height_indices, width_indices = torch.cat(positions).unbind(dim = -1)
         height_embed, width_embed = self.pos_embed_height[height_indices], self.pos_embed_width[width_indices]
 
@@ -303,6 +292,9 @@ class NaViT(Module):
 # quick test
 
 if __name__ == '__main__':
+
+    # works for torch 2.2.2
+
     v = NaViT(
         image_size = 256,
         patch_size = 32,
@@ -316,7 +308,7 @@ if __name__ == '__main__':
         token_dropout_prob = 0.1
     )
 
-    # 5 images of different resolutions - List[List[Tensor]]
+    # 5 images of different resolutions - List[Tensor]
 
     # for now, you'll have to correctly place images in same batch element as to not exceed maximum allowed sequence length for self-attention w/ masking
 
@@ -327,4 +319,3 @@ if __name__ == '__main__':
     ]
 
     assert v(images).shape == (5, 1000)
-

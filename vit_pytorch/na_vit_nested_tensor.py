@@ -41,7 +41,7 @@ def FeedForward(dim, hidden_dim, dropout = 0.):
 class Attention(Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
-        self.norm = nn.LayerNorm(dim)
+        self.norm = nn.LayerNorm(dim, bias = False)
 
         dim_inner = heads * dim_head
         self.heads = heads
@@ -115,7 +115,7 @@ class Transformer(Module):
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-        self.norm = nn.LayerNorm(dim)
+        self.norm = nn.LayerNorm(dim, bias = False)
 
     def forward(self, x):
 
@@ -185,7 +185,7 @@ class NaViT(Module):
         self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(
-            nn.LayerNorm(dim),
+            nn.LayerNorm(dim, bias = False),
             nn.Linear(dim, num_classes, bias = False)
         )
 

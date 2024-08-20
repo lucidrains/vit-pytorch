@@ -299,8 +299,6 @@ class NaViT(Module):
 
 if __name__ == '__main__':
 
-    # works for torch 2.2.2
-
     v = NaViT(
         image_size = 256,
         patch_size = 32,

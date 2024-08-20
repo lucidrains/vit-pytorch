@@ -4,6 +4,9 @@ from typing import List
 from functools import partial
 
 import torch
+import packaging.version as pkg_version
+assert pkg_version.parse(torch.__version__) >= pkg_version.parse('2.4'), 'install pytorch 2.4 or greater to use this flavor of NaViT'
+
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList

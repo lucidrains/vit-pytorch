@@ -29,8 +29,8 @@ setup(
   ],
   tests_require=[
     'pytest',
-    'torch==1.12.1',
-    'torchvision==0.13.1'
+    'torch==2.4.0',
+    'torchvision==0.19.0'
   ],
   classifiers=[
     'Development Status :: 4 - Beta',

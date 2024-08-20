@@ -66,7 +66,6 @@ class Attention(Module):
         x,
         context: Tensor | None = None
     ):
-
         x = self.norm(x)
 
         # for attention pooling, one query pooling to entire sequence
@@ -82,7 +81,10 @@ class Attention(Module):
         # split heads
 
         def split_heads(t):
-            return t.unflatten(-1, (self.heads, self.dim_head)).transpose(1, 2).contiguous()
+            return t.unflatten(-1, (self.heads, self.dim_head))
+
+        def transpose_head_seq(t):
+            return t.transpose(1, 2)
 
         query, key, value = map(split_heads, (query, key, value))
 
@@ -90,6 +92,8 @@ class Attention(Module):
 
         query = self.query_norm(query)
         key = self.key_norm(key)
+
+        query, key, value = map(transpose_head_seq, (query, key, value))
 
         # attention
 
@@ -242,7 +246,6 @@ class NaViT(Module):
 
         # add all height and width factorized positions
 
-
         height_indices, width_indices = torch.cat(positions).unbind(dim = -1)
         height_embed, width_embed = self.pos_embed_height[height_indices], self.pos_embed_width[width_indices]
 
@@ -260,7 +263,7 @@ class NaViT(Module):
 
         tokens = tokens + pos_embed
 
-        tokens = nested_tensor(tokens.split(seq_len.tolist()), layout = torch.jagged, device = device)
+        tokens = nested_tensor(tokens.split(seq_lens.tolist()), layout = torch.jagged, device = device)
 
         # embedding dropout
 

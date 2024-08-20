@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from functools import partial
-from typing import List, Union
+from typing import List
 
 import torch
 import torch.nn.functional as F
@@ -245,7 +247,7 @@ class NaViT(nn.Module):
 
     def forward(
         self,
-        batched_images: Union[List[Tensor], List[List[Tensor]]], # assume different resolution images already grouped correctly
+        batched_images: List[Tensor] | List[List[Tensor]], # assume different resolution images already grouped correctly
         group_images = False,
         group_max_seq_len = 2048
     ):
@@ -263,6 +265,11 @@ class NaViT(nn.Module):
                 calc_token_dropout = self.calc_token_dropout if self.training else None,
                 max_seq_len = group_max_seq_len
             )
+
+        # if List[Tensor] is not grouped -> List[List[Tensor]]
+
+        if torch.is_tensor(batched_images[0]):
+            batched_images = [batched_images]
 
         # process images into variable lengthed sequences with attention mask
 

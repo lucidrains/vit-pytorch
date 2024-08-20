@@ -198,6 +198,38 @@ preds = v(
 ) # (5, 1000)
 ```
 
+Finally, if you would like to make use of a flavor of NaViT using <a href="https://pytorch.org/tutorials/prototype/nestedtensor.html">nested tensors</a> (which will omit a lot of the masking and padding altogether), make sure you are on version `2.4` and import as follows
+
+```python
+import torch
+from vit_pytorch.na_vit_nested_tensor import NaViT
+
+v = NaViT(
+    image_size = 256,
+    patch_size = 32,
+    num_classes = 1000,
+    dim = 1024,
+    depth = 6,
+    heads = 16,
+    mlp_dim = 2048,
+    dropout = 0.,
+    emb_dropout = 0.,
+    token_dropout_prob = 0.1
+)
+
+# 5 images of different resolutions - List[Tensor]
+
+images = [
+    torch.randn(3, 256, 256), torch.randn(3, 128, 128),
+    torch.randn(3, 128, 256), torch.randn(3, 256, 128),
+    torch.randn(3, 64, 256)
+]
+
+preds = v(images)
+
+assert preds.shape == (5, 1000)
+```
+
 ## Distillation
 
 <img src="./images/distill.png" width="300px"></img>

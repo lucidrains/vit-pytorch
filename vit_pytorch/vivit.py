@@ -129,6 +129,7 @@ class ViT(nn.Module):
 
         assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
         assert frames % frame_patch_size == 0, 'Frames must be divisible by frame patch size'
+        assert variant in ('factorized_encoder', 'factorized_self_attention'), f'variant = {variant} is not implemented'
 
         num_image_patches = (image_height // patch_height) * (image_width // patch_width)
         num_frame_patches = (frames // frame_patch_size)

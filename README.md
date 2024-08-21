@@ -1218,7 +1218,8 @@ pred = cct(video)
 
 <img src="./images/vivit.png" width="350px"></img>
 
-This <a href="https://arxiv.org/abs/2103.15691">paper</a> offers 3 different types of architectures for efficient attention of videos, with the main theme being factorizing the attention across space and time. This repository will offer the first variant, which is a spatial transformer followed by a temporal one.
+This <a href="https://arxiv.org/abs/2103.15691">paper</a> offers 3 different types of architectures for efficient attention of videos, with the main theme being factorizing the attention across space and time. This repository includes the factorized encoder and the factorized self-attention variant.
+The factorized encoder variant is a spatial transformer followed by a temporal one. The factorized self-attention variant is a spatio-temporal transformer with alternating spatial and temporal self-attention layers.
 
 ```python
 import torch
@@ -1234,7 +1235,8 @@ v = ViT(
     spatial_depth = 6,         # depth of the spatial transformer
     temporal_depth = 6,        # depth of the temporal transformer
     heads = 8,
-    mlp_dim = 2048
+    mlp_dim = 2048,
+    variant = 'factorized_encoder', # or 'factorized_self_attention'
 )
 
 video = torch.randn(4, 3, 16, 128, 128) # (batch, channels, frames, height, width)

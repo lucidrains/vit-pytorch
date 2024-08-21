@@ -78,6 +78,30 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return self.norm(x)
 
+class FactorizedTransformer(nn.Module):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+        super().__init__()
+        self.norm = nn.LayerNorm(dim)
+        self.layers = nn.ModuleList([])
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                FeedForward(dim, mlp_dim, dropout = dropout)
+            ]))
+
+    def forward(self, x):
+        b, f, n, _ = x.shape
+        for spatial_attn, temporal_attn, ff in self.layers:
+            x = rearrange(x, 'b f n d -> (b f) n d')
+            x = spatial_attn(x) + x
+            x = rearrange(x, '(b f) n d -> (b n) f d', b=b, f=f)
+            x = temporal_attn(x) + x
+            x = ff(x) + x
+            x = rearrange(x, '(b n) f d -> b f n d', b=b, n=n)
+
+        return self.norm(x)
+
 class ViT(nn.Module):
     def __init__(
         self,

@@ -6,7 +6,7 @@ with open('README.md') as f:
 setup(
   name = 'vit-pytorch',
   packages = find_packages(exclude=['examples']),
-  version = '1.7.11',
+  version = '1.7.12',
   license='MIT',
   description = 'Vision Transformer (ViT) - Pytorch',
   long_description=long_description,

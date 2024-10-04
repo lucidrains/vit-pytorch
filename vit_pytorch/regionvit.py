@@ -20,6 +20,18 @@ def divisible_by(val, d):
 
 # helper classes
 
+class ChanLayerNorm(nn.Module):
+    def __init__(self, dim, eps = 1e-5):
+        super().__init__()
+        self.eps = eps
+        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
+        self.b = nn.Parameter(torch.zeros(1, dim, 1, 1))
+
+    def forward(self, x):
+        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
+        mean = torch.mean(x, dim = 1, keepdim = True)
+        return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
+
 class Downsample(nn.Module):
     def __init__(self, dim_in, dim_out):
         super().__init__()
@@ -212,10 +224,10 @@ class RegionViT(nn.Module):
         if tokenize_local_3_conv:
             self.local_encoder = nn.Sequential(
                 nn.Conv2d(3, init_dim, 3, 2, 1),
-                nn.LayerNorm(init_dim),
+                ChanLayerNorm(init_dim),
                 nn.GELU(),
                 nn.Conv2d(init_dim, init_dim, 3, 2, 1),
-                nn.LayerNorm(init_dim),
+                ChanLayerNorm(init_dim),
                 nn.GELU(),
                 nn.Conv2d(init_dim, init_dim, 3, 1, 1)
             )

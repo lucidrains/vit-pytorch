@@ -2133,4 +2133,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{Loshchilov2024nGPTNT,
+    title   = {nGPT: Normalized Transformer with Representation Learning on the Hypersphere},
+    author  = {Ilya Loshchilov and Cheng-Ping Hsieh and Simeng Sun and Boris Ginsburg},
+    year    = {2024},
+    url     = {https://api.semanticscholar.org/CorpusID:273026160}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

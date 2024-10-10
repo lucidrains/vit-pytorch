@@ -2142,4 +2142,14 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{Liu2017DeepHL,
+    title   = {Deep Hyperspherical Learning},
+    author  = {Weiyang Liu and Yanming Zhang and Xingguo Li and Zhen Liu and Bo Dai and Tuo Zhao and Le Song},
+    booktitle = {Neural Information Processing Systems},
+    year    = {2017},
+    url     = {https://api.semanticscholar.org/CorpusID:5104558}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

@@ -76,7 +76,8 @@ class Attention(Module):
 
         self.dropout = dropout
 
-        self.qk_scale = nn.Parameter(torch.ones(dim_head) * (dim_head ** 0.25))
+        self.q_scale = nn.Parameter(torch.ones(dim_inner) * (dim_head ** 0.25))
+        self.k_scale = nn.Parameter(torch.ones(dim_inner) * (dim_head ** 0.25))
 
         self.split_heads = Rearrange('b n (h d) -> b h n d', h = heads)
         self.merge_heads = Rearrange('b h n d -> b n (h d)')
@@ -89,12 +90,14 @@ class Attention(Module):
     ):
         q, k, v = self.to_q(x), self.to_k(x), self.to_v(x)
 
+        q = q * self.q_scale
+        k = k * self.k_scale
+
         q, k, v = map(self.split_heads, (q, k, v))
 
         # query key rmsnorm
 
         q, k = map(l2norm, (q, k))
-        q, k = (q * self.qk_scale), (k * self.qk_scale)
 
         # scale is 1., as scaling factor is moved to s_qk (dk ^ 0.25) - eq. 16
 

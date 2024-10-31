@@ -57,7 +57,7 @@ class Attention(Module):
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
         if exists(value_residual):
-            v = v + value_residual
+            v = 0.5 * (v + value_residual)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 

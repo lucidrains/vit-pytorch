@@ -336,7 +336,7 @@ class NaViT(Module):
 
 if __name__ == '__main__':
 
-    # works for torch 2.4
+    # works for torch 2.5
 
     v = NaViT(
         image_size = 256,
@@ -362,3 +362,5 @@ if __name__ == '__main__':
     ]
 
     assert v(volumes).shape == (5, 1000)
+
+    v(volumes).sum().backward()

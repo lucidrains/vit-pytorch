@@ -323,3 +323,5 @@ if __name__ == '__main__':
     ]
 
     assert v(images).shape == (5, 1000)
+
+    v(images).sum().backward()

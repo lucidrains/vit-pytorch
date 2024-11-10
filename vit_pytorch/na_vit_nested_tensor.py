@@ -6,8 +6,8 @@ from functools import partial
 import torch
 import packaging.version as pkg_version
 
-if pkg_version.parse(torch.__version__) < pkg_version.parse('2.4'):
-    print('nested tensor NaViT was tested on pytorch 2.4')
+if pkg_version.parse(torch.__version__) < pkg_version.parse('2.5'):
+    print('nested tensor NaViT was tested on pytorch 2.5')
 
 from torch import nn, Tensor
 import torch.nn.functional as F

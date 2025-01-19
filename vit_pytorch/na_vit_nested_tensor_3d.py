@@ -84,17 +84,6 @@ class Attention(Module):
         # split heads
 
         def split_heads(t):
-            return t.unflatten(-1, (self.heads, self.dim_head)).transpose(1, 2).contiguous()
-
-        # queries, keys, values
-
-        query = self.to_queries(x)
-        key = self.to_keys(context)
-        value = self.to_values(context)
-
-        # split heads
-
-        def split_heads(t):
             return t.unflatten(-1, (self.heads, self.dim_head))
 
         def transpose_head_seq(t):

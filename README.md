@@ -2172,4 +2172,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{Fuller2025SimplerFV,
+    title   = {Simpler Fast Vision Transformers with a Jumbo CLS Token},
+    author  = {Anthony Fuller and Yousef Yassin and Daniel G. Kyrollos and Evan Shelhamer and James R. Green},
+    year    = {2025},
+    url     = {https://api.semanticscholar.org/CorpusID:276557720}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

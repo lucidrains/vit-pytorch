@@ -43,7 +43,8 @@ class AcceptVideoWrapper(Module):
     def forward(
         self,
         video, # (b c t h w)
-        eval_with_no_grad = False
+        eval_with_no_grad = False,
+        forward_kwargs = dict()
     ):
         add_time_pos_emb = self.add_time_pos_emb
         time = video.shape[2]
@@ -67,7 +68,7 @@ class AcceptVideoWrapper(Module):
         context = torch.no_grad if eval_with_no_grad else nullcontext
 
         with context():
-            outputs = func(video)
+            outputs = func(video, **forward_kwargs)
 
         # handle multiple outputs, say logits and embeddings returned from extractor - also handle some reduce aux loss being returned
 

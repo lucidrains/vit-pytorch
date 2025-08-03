@@ -25,6 +25,7 @@ class AcceptVideoWrapper(Module):
         add_time_pos_emb = False,
         dim_emb = None,
         time_seq_len = None,
+        embed_is_channel_first = False,
         output_pos_add_pos_emb = 0 # defaults to first output position to add embedding 
     ):
         super().__init__()
@@ -39,6 +40,8 @@ class AcceptVideoWrapper(Module):
             self.time_seq_len = time_seq_len
 
             self.pos_emb = Parameter(randn(time_seq_len, dim_emb) * 1e-2)
+
+        self.embed_is_channel_first = embed_is_channel_first
 
     def forward(
         self,
@@ -89,9 +92,16 @@ class AcceptVideoWrapper(Module):
 
             dims_to_unsqueeze = embed.ndim - pos_emb.ndim
 
-            pos_emb = pos_emb.reshape(*pos_emb.shape[:2], *((1,) * dims_to_unsqueeze) , pos_emb.shape[-1])
+            one_dims = ((1,) * dims_to_unsqueeze)
 
-            embed = embed + pos_emb[:, :embed.shape[1]]
+            if self.embed_is_channel_first:
+                pos_emb = pos_emb.reshape(*pos_emb.shape, *one_dims)
+            else:
+                pos_emb = pos_emb.reshape(*pos_emb.shape[:2], *one_dims, pos_emb.shape[-1])
+
+            pos_emb = pos_emb[:, :embed.shape[1]]
+
+            embed = embed + pos_emb
 
             outputs[self.output_pos_add_pos_emb] = embed
 

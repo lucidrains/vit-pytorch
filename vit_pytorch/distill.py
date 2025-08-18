@@ -116,6 +116,7 @@ class DistillWrapper(Module):
         super().__init__()
         assert (isinstance(student, (DistillableViT, DistillableT2TViT, DistillableEfficientViT))) , 'student must be a vision transformer'
 
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.teacher = teacher
         self.student = student
 
@@ -125,12 +126,12 @@ class DistillWrapper(Module):
         self.alpha = alpha
         self.hard = hard
 
-        self.distillation_token = nn.Parameter(torch.randn(1, 1, dim))
+        self.distillation_token = nn.Parameter(torch.randn(1, 1, dim,device=device))
 
         self.distill_mlp = nn.Sequential(
             nn.LayerNorm(dim) if mlp_layernorm else nn.Identity(),
             nn.Linear(dim, num_classes)
-        )
+        ).to(device)
 
     def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
 

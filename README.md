@@ -2181,4 +2181,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{xiong2025ndrope,
+    author = {Jerry Xiong},
+    title  = {On n-dimensional rotary positional embeddings},
+    year   = {2025},
+    url    = {https://jerryxio.ng/posts/nd-rope/}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

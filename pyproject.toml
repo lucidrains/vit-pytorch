@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vit-pytorch"
+version = "1.12.4"
+description = "Vision Transformer (ViT) - Pytorch"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+authors = [
+  { name = "Phil Wang", email = "lucidrains@gmail.com" },
+]
+requires-python = ">=3.8"
+keywords = [
+  "artificial intelligence",
+  "attention mechanism",
+  "image recognition",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "einops>=0.7.0",
+  "torch>=1.10",
+  "torchvision",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "torch==2.4.0",
+  "torchvision==0.19.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/lucidrains/vit-pytorch"
+Repository = "https://github.com/lucidrains/vit-pytorch"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["vit_pytorch*"]
+exclude = ["examples*", "tests*", "test*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "."]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-q"
+filterwarnings = [
+  "ignore::FutureWarning",
+]

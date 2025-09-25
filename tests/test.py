@@ -1,7 +1,7 @@
 import torch
 from vit_pytorch import ViT
 
-def test():
+def test_vit():
     v = ViT(
         image_size = 256,
         patch_size = 32,

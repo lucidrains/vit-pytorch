@@ -2190,4 +2190,15 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{anonymous2025vat,
+    title   = {{VAT}: Vision Action Transformer by Unlocking Full Representation of ViT},
+    author  = {Anonymous},
+    booktitle = {Submitted to The Fourteenth International Conference on Learning Representations},
+    year    = {2025},
+    url     = {https://openreview.net/forum?id=TalHOvvLZu},
+    note    = {under review}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

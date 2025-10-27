@@ -2201,4 +2201,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{carrigg2025decorrelationspeedsvisiontransformers,
+    title   = {Decorrelation Speeds Up Vision Transformers}, 
+    author  = {Kieran Carrigg and Rob van Gastel and Melda Yeghaian and Sander Dalm and Faysal Boughorbel and Marcel van Gerven},
+    year    = {2025},
+    eprint  = {2510.14657},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2510.14657}, 
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

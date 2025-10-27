@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vit-pytorch"
-version = "1.14.5"
+version = "1.15.2"
 description = "Vision Transformer (ViT) - Pytorch"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import nullcontext
 
 import torch
 import torch.nn.functional as F
@@ -343,7 +344,8 @@ class VAT(Module):
         extra = None,     # (b d)           - batch, dim extra     
         tasks = None,     # (b)
         actions = None,   # (b k d)         - batch, action chunk length, action dimension
-        return_hiddens = False
+        return_hiddens = False,
+        freeze_vit = False
     ):
         batch = video_or_image.shape[0]
         return_loss = exists(actions)
@@ -371,7 +373,10 @@ class VAT(Module):
 
         # get representation trajectory from vit
 
-        embed, hiddens = self.vit(images, return_hiddens = True)
+        vit_forward_context = torch.no_grad if freeze_vit else nullcontext
+
+        with vit_forward_context():
+            embed, hiddens = self.vit(images, return_hiddens = True)
 
         hiddens = cat((hiddens, embed[None, ...]))
 
@@ -511,7 +516,7 @@ if __name__ == '__main__':
 
     actions = torch.randn(2, 7, 20)         # actions for learning
 
-    loss = vat(images, actions = actions, tasks = tasks, extra = extra)
+    loss = vat(images, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
     loss.backward()
 
     # after much training

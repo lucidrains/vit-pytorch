@@ -237,7 +237,7 @@ class ViT(Module):
         if return_hiddens:
             return x, stack(hiddens)
 
-        cls_tokens, x, register_tokens = unpack(x, packed_shape, 'b * d')
+        register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
 
         x = x.mean(dim = 1) if self.pool == 'mean' else cls_tokens
 

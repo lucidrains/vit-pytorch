@@ -215,7 +215,8 @@ class AST(Module):
         spec_hop_length = None,
         spec_pad = 0,
         spec_center = True,
-        spec_pad_mode = 'reflect'
+        spec_pad_mode = 'reflect',
+        num_register_tokens = 4
     ):
         super().__init__()
         self.dim = dim
@@ -256,7 +257,10 @@ class AST(Module):
         )
 
         self.final_norm = nn.LayerNorm(dim)
+
         self.mlp_head = nn.Linear(dim, num_classes) if exists(num_classes) else nn.Identity()
+
+        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
 
     def forward(
         self,
@@ -296,6 +300,12 @@ class AST(Module):
 
         tokens = rearrange(tokens, 'b ... c -> b (...) c')
 
+        # register tokens
+
+        register_tokens = repeat(self.register_tokens, 'n d -> b n d', b = batch)
+
+        tokens, packed_shape = pack((register_tokens, tokens), 'b * d')
+
         # attention
 
         attended, hiddens = self.transformer(tokens, return_hiddens = True)
@@ -306,6 +316,8 @@ class AST(Module):
 
         if return_hiddens:
             return normed, stack(hiddens)
+
+        register_tokens, normed = unpack(normed, packed_shape, 'b * d')
 
         pooled = reduce(normed, 'b n d -> b d', 'mean')
 
@@ -384,7 +396,7 @@ class ViT(Module):
         if return_hiddens:
             return x, stack(hiddens)
 
-        cls_tokens, x, register_tokens = unpack(x, packed_shape, 'b * d')
+        register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
 
         x = x.mean(dim = 1) if self.pool == 'mean' else cls_tokens
 

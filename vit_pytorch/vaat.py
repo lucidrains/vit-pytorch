@@ -1,12 +1,16 @@
+# vision-audio-action transformer - vaat
+
 from __future__ import annotations
 from contextlib import nullcontext
 
 import torch
 import torch.nn.functional as F
-from torch import nn, cat, stack, tensor
+from torch import nn, cat, stack, arange, tensor
 from torch.nn import Module, ModuleList
 
-from einops import rearrange, repeat, pack, unpack
+from torchaudio.transforms import Spectrogram
+
+from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
 
 # helpers
@@ -19,6 +23,30 @@ def default(v, d):
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
+
+# 2d sinusoidal positional embedding
+# simple vit paper shows it is good enough compared to learned
+
+def posemb_sincos_2d(
+    patches,
+    temperature = 10000,
+    dtype = torch.float32
+):
+    _, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
+
+    y, x = torch.meshgrid(arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
+    assert (dim % 4) == 0, 'feature dimension must be multiple of 4 for sincos emb'
+
+    omega = arange(dim // 4, device = device) / (dim // 4 - 1)
+    omega = temperature ** -omega
+
+    y = y.flatten()[:, None] * omega[None, :]
+    x = x.flatten()[:, None] * omega[None, :] 
+
+    pe = cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
+    pe = pe.type(dtype)
+
+    return rearrange(pe, '(h w) d -> h w d', h = h, w = w)
 
 # classes
 
@@ -67,10 +95,10 @@ class Attention(Module):
     def __init__(
         self,
         dim,
-        dim_context = None,
         heads = 8,
         dim_head = 64,
         dropout = 0.,
+        dim_context = None,
         cross_attend = False
     ):
         super().__init__()
@@ -166,6 +194,125 @@ class Transformer(Module):
 
         return x, hiddens
 
+class AST(Module):
+    # audio spectrogram transformer https://arxiv.org/abs/2104.01778
+
+    def __init__(
+        self,
+        dim,
+        depth,
+        mlp_dim,
+        num_classes = None,
+        patch_size = 16,
+        dim_head = 64,
+        heads = 8,
+        dropout = 0.,
+        accept_spec = False,
+        accept_spec_time_first = True,
+        spec_n_fft = 128,
+        spec_power = 2,
+        spec_win_length = 24,
+        spec_hop_length = None,
+        spec_pad = 0,
+        spec_center = True,
+        spec_pad_mode = 'reflect'
+    ):
+        super().__init__()
+        self.dim = dim
+        self.depth = depth
+
+        patch_height, patch_width = pair(patch_size)
+        patch_input_dim = patch_height * patch_width
+
+        self.patch_size = (patch_height, patch_width)
+
+        self.to_patch_tokens = nn.Sequential(
+            Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]),
+            nn.LayerNorm(patch_input_dim),
+            nn.Linear(patch_input_dim, dim),
+            nn.LayerNorm(dim)
+        )
+
+        self.accept_spec = accept_spec
+        self.accept_spec_time_first = accept_spec_time_first
+
+        self.spec = Spectrogram(
+            n_fft = spec_n_fft,
+            power = spec_power,
+            win_length = spec_win_length,
+            hop_length = spec_hop_length,
+            pad = spec_pad,
+            center = spec_center,
+            pad_mode = spec_pad_mode
+        )
+
+        self.transformer = Transformer(
+            dim = dim,
+            depth = depth,
+            dim_head = dim_head,
+            heads = heads,
+            mlp_dim = mlp_dim,
+            dropout = dropout,
+        )
+
+        self.final_norm = nn.LayerNorm(dim)
+        self.mlp_head = nn.Linear(dim, num_classes) if exists(num_classes) else nn.Identity()
+
+    def forward(
+        self,
+        raw_audio_or_spec, # (b t) | (b f t)
+        return_hiddens = False
+    ):
+        batch, device = raw_audio_or_spec.shape[0], raw_audio_or_spec.device
+
+        assert (self.accept_spec and raw_audio_or_spec.ndim == 3) or (not self.accept_spec and raw_audio_or_spec.ndim == 2)
+
+        if self.accept_spec:
+            spec = rearrange(raw_audio_or_spec, 'b t f -> b f t')
+        else:
+            spec = self.spec(raw_audio_or_spec)
+
+        # automatically crop if audio does not yield a 2d spectrogram that is divisible by patch sizes
+
+        height, width = spec.shape[-2:]
+        patch_height, patch_width = self.patch_size
+
+        rounded_height = height // patch_height * patch_height
+        rounded_width = width // patch_width * patch_width
+
+        spec = spec[..., :rounded_height, :rounded_width]
+
+        # to patches
+
+        tokens = self.to_patch_tokens(spec)
+
+        # get number of patches along height and width
+
+        _, num_patch_height, num_patch_width, _ = tokens.shape
+
+        # 2d sinusoidal positional embedding
+
+        tokens = tokens + posemb_sincos_2d(tokens)
+
+        tokens = rearrange(tokens, 'b ... c -> b (...) c')
+
+        # attention
+
+        attended, hiddens = self.transformer(tokens, return_hiddens = True)
+
+        # final global average and norm (most recent papers show this is superior to CLS token)
+
+        normed = self.final_norm(attended)
+
+        if return_hiddens:
+            return normed, stack(hiddens)
+
+        pooled = reduce(normed, 'b n d -> b d', 'mean')
+
+        maybe_logits = self.mlp_head(pooled)
+
+        return maybe_logits
+
 class ViT(Module):
     def __init__(
         self,
@@ -242,6 +389,7 @@ class ViT(Module):
         x = x.mean(dim = 1) if self.pool == 'mean' else cls_tokens
 
         x = self.to_latent(x)
+
         return self.mlp_head(x)
 
 # proposed VAT
@@ -249,10 +397,11 @@ class ViT(Module):
 # https://openreview.net/forum?id=TalHOvvLZu
 # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
 
-class VAT(Module):
+class VAAT(Module):
     def __init__(
         self,
         vit: ViT | dict,
+        ast: AST | dict,
         *,
         dim,
         depth,
@@ -270,9 +419,12 @@ class VAT(Module):
         add_self_attn = True,  # in the paper, they didn't have any ways for the action token to exchange information with the extra token, so we'll just add it as an option
         self_attn_heads = 4,
         self_attn_dim_head = 32,
+        ast_layer_indices: tuple[int, ...] | None = None,
         vit_layer_indices: tuple[int, ...] | None = None
     ):
         super().__init__()
+
+        # vit
 
         if isinstance(vit, dict):
             vit = ViT(**vit)
@@ -281,13 +433,30 @@ class VAT(Module):
 
         vit_dim = vit.dim
 
-        assert vit.depth == depth or exists(vit_layer_indices), f'if the VAT depth is not equal to the ViT depth, you must pass in the indices from the ViT to be layered to the VAT in order from bottom to top'
+        assert vit.depth == depth or exists(vit_layer_indices), f'if the VAAT depth is not equal to the ViT depth, you must pass in the indices from the ViT to be layered to the VAAT in order from bottom to top'
 
         vit_layer_indices = default(vit_layer_indices, tuple(range(depth)))
 
         assert len(vit_layer_indices) == depth, f'number of vit layer indices {len(vit_layer_indices)} does not much the VAT depth {depth}'
 
-        self.register_buffer('layer_indices', tensor(vit_layer_indices), persistent = False)
+        self.register_buffer('vit_layer_indices', tensor(vit_layer_indices), persistent = False)
+
+        # ast
+
+        if isinstance(ast, dict):
+            ast = AST(**ast)
+
+        self.ast = ast
+
+        ast_dim = ast.dim
+
+        assert ast.depth == depth or exists(ast_layer_indices), f'if the VAAT depth is not equal to the AST depth, you must pass in the indices from the AST to be layered to the VAAT in order from bottom to top'
+
+        ast_layer_indices = default(ast_layer_indices, tuple(range(depth)))
+
+        assert len(ast_layer_indices) == depth, f'number of ast layer indices {len(ast_layer_indices)} does not much the VAAT depth {depth}'
+
+        self.register_buffer('ast_layer_indices', tensor(vit_layer_indices), persistent = False)
 
         # handle maybe multiple frames
 
@@ -326,6 +495,7 @@ class VAT(Module):
                 maybe_film,
                 maybe_self_attn,
                 Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout, cross_attend = True),
+                Attention(dim = dim, dim_context = ast_dim, heads = heads, dim_head = dim_head, dropout = dropout, cross_attend = True),
                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
             ]))
 
@@ -342,12 +512,14 @@ class VAT(Module):
     def forward(
         self,
         video_or_image,   # (b v? c t? h w) - batch, views [wrist + third person or more], channels, maybe time, height, width
+        audio_or_spec,    # (b t) | (b f t) - batch, audio len | batch, spec freq, time
         *,
         extra = None,     # (b d)           - batch, dim extra     
         tasks = None,     # (b)
         actions = None,   # (b k d)         - batch, action chunk length, action dimension
         return_hiddens = False,
-        freeze_vit = False
+        freeze_vit = False,
+        freeze_ast = False
     ):
         batch = video_or_image.shape[0]
         return_loss = exists(actions)
@@ -384,7 +556,7 @@ class VAT(Module):
 
         # extract the hiddens needed for the action cross attention
 
-        hiddens = hiddens[self.layer_indices]
+        hiddens = hiddens[self.vit_layer_indices]
 
         # pack temporarily for embedding
 
@@ -404,6 +576,19 @@ class VAT(Module):
             view_emb = rearrange(self.view_emb, 'v d -> v 1 1 d')
             hiddens = hiddens + view_emb
 
+        # get representation trajectory from ast
+
+        ast_forward_context = torch.no_grad if freeze_ast else nullcontext
+
+        with ast_forward_context():
+            audio_embed, audio_hiddens = self.ast(audio_or_spec, return_hiddens = True)
+
+        audio_hiddens = cat((audio_hiddens, audio_embed[None, ...]))
+
+        # extract the hiddens needed for the action cross attention
+
+        audio_hiddens = audio_hiddens[self.ast_layer_indices]
+
         # maybe tasks
 
         if exists(tasks):
@@ -413,7 +598,9 @@ class VAT(Module):
 
         # cross from actions to representation trajectory
 
-        context = rearrange(hiddens, 'l b v t n d -> l b (v t n) d')
+        image_context = rearrange(hiddens, 'l b v t n d -> l b (v t n) d')
+
+        audio_context = audio_hiddens # eventually handle views (stereo and beyond)
 
         # get main action tokens and maybe append extra
 
@@ -438,12 +625,14 @@ class VAT(Module):
 
         hiddens = [action_tokens]
 
-        for (maybe_film, maybe_self_attn, cross_attn, ff), layer_context in zip(self.layers, context):
+        for (maybe_film, maybe_self_attn, image_cross_attn, audio_cross_attn, ff), image_layer_context, audio_layer_context in zip(self.layers, image_context, audio_context):
 
             if exists(tasks):
                 action_tokens = maybe_film(action_tokens, task_emb)
 
-            action_tokens = cross_attn(action_tokens, layer_context) + action_tokens
+            action_tokens = image_cross_attn(action_tokens, image_layer_context) + action_tokens
+
+            action_tokens = audio_cross_attn(action_tokens, audio_layer_context) + action_tokens
 
             if exists(maybe_self_attn):
                 action_tokens = maybe_self_attn(action_tokens) + action_tokens
@@ -487,14 +676,24 @@ if __name__ == '__main__':
         image_size = 256,
         patch_size = 32,
         num_classes = 1000,
-        dim = 256,
+        dim = 384,
         heads = 8,
         depth = 4,
-        mlp_dim = 1024
+        mlp_dim = 384 * 4
     )
 
-    vat = VAT(
+    ast = AST(
+        dim = 384,
+        depth = 4,
+        heads = 8,
+        num_classes = 1000,
+        patch_size = 16,
+        mlp_dim = 384 * 4
+    )
+
+    vat = VAAT(
         vit,
+        ast,
         dim = 512,
         depth = 9,
         heads = 8,
@@ -509,20 +708,25 @@ if __name__ == '__main__':
         dim_extra_token = 33,               # extra token with some variable dimension
         vit_layer_indices = (               # extending on the paper, allow for any order of hiddens, and also allow for depth index (which equates to the final embedding output from the vit)
             0, 0, 1, 1, 2, 2, 3, 3, 4
+        ),
+        ast_layer_indices = (
+            1, 1, 1, 2, 2, 2, 3, 3, 3
         )
     )
 
     images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)
+    audio = torch.randn(2, 14_100 * 5)
+
     tasks = torch.randint(0, 4, (2,))
     extra = torch.randn(2, 33)                 # extra internal state
 
     actions = torch.randn(2, 7, 20)         # actions for learning
 
-    loss = vat(images, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
+    loss = vat(images, audio, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
     loss.backward()
 
     # after much training
 
-    pred_actions, hiddens = vat(images, tasks = tasks, extra = extra, return_hiddens = True)
+    pred_actions, hiddens = vat(images, audio, tasks = tasks, extra = extra, return_hiddens = True)
 
     assert pred_actions.shape == (2, 7, 20)

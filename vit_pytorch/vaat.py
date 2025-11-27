@@ -735,7 +735,7 @@ if __name__ == '__main__':
         mlp_dim = 384 * 4
     )
 
-    vat = VAAT(
+    vaat = VAAT(
         vit,
         ast,
         dim = 512,
@@ -767,11 +767,11 @@ if __name__ == '__main__':
 
     actions = torch.randn(2, 7, 20)         # actions for learning
 
-    loss = vat(images, audio, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
+    loss = vaat(images, audio, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
     loss.backward()
 
     # after much training
 
-    pred_actions, hiddens = vat(images, audio, tasks = tasks, extra = extra, return_hiddens = True)
+    pred_actions, hiddens = vaat(images, audio, tasks = tasks, extra = extra, return_hiddens = True)
 
     assert pred_actions.shape == (2, 7, 20)

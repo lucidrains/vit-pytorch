@@ -176,7 +176,7 @@ class NaViT(Module):
 
         self.channels = channels
         self.patch_size = patch_size
-        self.to_patches = Rearrange('c (f pf) (h p1) (w p2) -> f h w (c p1 p2 pf)', p1 = patch_size, p2 = patch_size, pf = frame_patch_size)
+        self.to_patches = Rearrange('c (f pf) (h p1) (w p2) -> f h w (c pf p1 p2)', p1 = patch_size, p2 = patch_size, pf = frame_patch_size)
 
         self.to_patch_embedding = nn.Sequential(
             nn.LayerNorm(patch_dim),

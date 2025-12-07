@@ -33,6 +33,14 @@ def posemb_grid(ph, pw, device):
     w_idx = torch.arange(pw, device=device).repeat(ph)
     return torch.stack([h_idx, w_idx], dim=-1)
 
+@lru_cache(maxsize=256)
+def get_image_ids(patch_counts, device):
+    """Cache image_ids tensors for common patch count patterns."""
+    return torch.repeat_interleave(
+        torch.arange(len(patch_counts), device=device),
+        torch.tensor(patch_counts, device=device)
+    )
+
 # auto grouping images
 
 def group_images_by_max_seq_len(
@@ -313,12 +321,9 @@ class NaViT(nn.Module):
                     sequences[i] = seq[keep_indices]
                     positions[i] = pos[keep_indices]
 
-            # build image_ids efficiently using repeat_interleave
-            patch_counts = [seq.shape[0] for seq in sequences]
-            image_ids = torch.repeat_interleave(
-                arange(len(images)),
-                torch.tensor(patch_counts, device=device)
-            )
+            # build image_ids using cached tensors for common patterns
+            patch_counts = tuple(seq.shape[0] for seq in sequences)
+            image_ids = get_image_ids(patch_counts, device)
 
             batched_image_ids.append(image_ids)
             batched_sequences.append(torch.cat(sequences, dim=0))

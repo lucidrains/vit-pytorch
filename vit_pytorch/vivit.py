@@ -48,13 +48,16 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
+        B, F, _ = x.size()
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
+        if mask is not None:
+            dots = dots.masked_fill(mask.view(B, 1, 1, F) == 0, float('-inf'))
         attn = self.attend(dots)
         attn = self.dropout(attn)
 
@@ -72,9 +75,9 @@ class Transformer(nn.Module):
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
-    def forward(self, x):
+    def forward(self, x, mask=None):
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x = attn(x, mask=mask) + x
             x = ff(x) + x
         return self.norm(x)
 
@@ -166,7 +169,7 @@ class ViT(nn.Module):
         self.mlp_head = nn.Linear(dim, num_classes)
         self.variant = variant
 
-    def forward(self, video):
+    def forward(self, video, mask=None):
         x = self.to_patch_embedding(video)
         b, f, n, _ = x.shape
 
@@ -197,10 +200,15 @@ class ViT(nn.Module):
 
                 x = torch.cat((temporal_cls_tokens, x), dim = 1)
             
+            if mask is not None:
+                temporal_mask = torch.ones((b, f+1), device=x.device, dtype=torch.bool)
+                temporal_mask[:, 1:] = mask
+            else:
+                temporal_mask = None
 
             # attend across time
 
-            x = self.temporal_transformer(x)
+            x = self.temporal_transformer(x, mask=temporal_mask)
 
             # excise out temporal cls token or average pool
 

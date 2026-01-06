@@ -113,7 +113,7 @@ class ViT(Module):
         self.pool = pool
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Linear(dim, num_classes)
+        self.mlp_head = nn.Linear(dim, num_classes) if num_classes > 0 else None
 
     def forward(self, img):
         batch = img.shape[0]
@@ -128,6 +128,9 @@ class ViT(Module):
         x = self.dropout(x)
 
         x = self.transformer(x)
+
+        if self.mlp_head is None:
+            return x
 
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 

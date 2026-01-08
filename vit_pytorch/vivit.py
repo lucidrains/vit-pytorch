@@ -3,12 +3,11 @@ from collections import namedtuple
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from einops import rearrange, repeat, reduce
 from einops.layers.torch import Rearrange
 
-
-Config = namedtuple('FlashAttentionConfig', ['enable_flash', 'enable_math', 'enable_mem_efficient', 'enable_cudnn'])
 
 # helpers
 
@@ -35,9 +34,8 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 class Attention(nn.Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_flash_attn = True, config: Config = Config(True, True, True, True)):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_flash_attn = True):
         super().__init__()
-        self.config = config
         self.use_flash_attn = use_flash_attn
         self.dropout_p = dropout
         inner_dim = dim_head *  heads
@@ -58,7 +56,7 @@ class Attention(nn.Module):
         ) if project_out else nn.Identity()
 
     def flash_attn(self, q, k, v, mask=None):
-        with torch.backends.cuda.sdp_kernel(**self.config._asdict()):
+        with sdpa_kernel([SDPBackend.MATH, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.FLASH_ATTENTION, SDPBackend.CUDNN_ATTENTION]):
             out = F.scaled_dot_product_attention(q, k, v,
                                                  attn_mask=mask,
                                                  dropout_p=self.dropout_p,

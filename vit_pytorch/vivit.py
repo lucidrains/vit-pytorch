@@ -72,16 +72,17 @@ class Attention(nn.Module):
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
         if self.use_flash_attn:
-            return self.flash_attn(q, k, v, mask=mask)
+            out =  self.flash_attn(q, k, v, mask=mask)
 
-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        else:
+            dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
-        if mask is not None:
-            dots = dots.masked_fill(mask.view(B, 1, 1, F) == 0, float('-inf'))
-        attn = self.attend(dots)
-        attn = self.dropout(attn)
+            if mask is not None:
+                dots = dots.masked_fill(mask.view(B, 1, 1, F) == 0, float('-inf'))
+            attn = self.attend(dots)
+            attn = self.dropout(attn)
 
-        out = torch.matmul(attn, v)
+            out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 

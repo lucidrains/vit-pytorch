@@ -1,8 +1,13 @@
+from collections import namedtuple
+
 import torch
+import torch.nn.functional as F
 from torch import nn
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from einops import rearrange, repeat, reduce
 from einops.layers.torch import Rearrange
+
 
 # helpers
 
@@ -29,8 +34,10 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 class Attention(nn.Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_flash_attn = True):
         super().__init__()
+        self.use_flash_attn = use_flash_attn
+        self.dropout_p = dropout
         inner_dim = dim_head *  heads
         project_out = not (heads == 1 and dim_head == dim)
 
@@ -48,23 +55,41 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
 
-    def forward(self, x):
+    def flash_attn(self, q, k, v, mask=None):
+        with sdpa_kernel([SDPBackend.MATH, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.FLASH_ATTENTION, SDPBackend.CUDNN_ATTENTION]):
+            out = F.scaled_dot_product_attention(q, k, v,
+                                                 attn_mask=mask,
+                                                 dropout_p=self.dropout_p,
+                                                 is_causal=False,
+                                                 scale=self.scale)
+
+        return out
+
+    def forward(self, x, mask=None):
+        B, F, _ = x.size()
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        if self.use_flash_attn:
+            out =  self.flash_attn(q, k, v, mask=mask)
 
-        attn = self.attend(dots)
-        attn = self.dropout(attn)
+        else:
+            dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
-        out = torch.matmul(attn, v)
+            if mask is not None:
+                dots = dots.masked_fill(mask.view(B, 1, 1, F) == 0, float('-inf'))
+            attn = self.attend(dots)
+            attn = self.dropout(attn)
+
+            out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., use_flash_attn = True):
         super().__init__()
+        self.use_flash_attn = use_flash_attn
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         for _ in range(depth):
@@ -72,21 +97,22 @@ class Transformer(nn.Module):
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
-    def forward(self, x):
+    def forward(self, x, mask=None):
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x = attn(x, mask=mask) + x
             x = ff(x) + x
         return self.norm(x)
 
 class FactorizedTransformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., use_flash_attn = True):
         super().__init__()
+        self.use_flash_attn = use_flash_attn
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
-                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_flash_attn = use_flash_attn),
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_flash_attn = use_flash_attn),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
@@ -122,6 +148,7 @@ class ViT(nn.Module):
         dropout = 0.,
         emb_dropout = 0.,
         variant = 'factorized_encoder',
+        use_flash_attn: bool = True,
     ):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -154,11 +181,11 @@ class ViT(nn.Module):
 
         if variant == 'factorized_encoder':
             self.temporal_cls_token = nn.Parameter(torch.randn(1, 1, dim)) if not self.global_average_pool else None
-            self.spatial_transformer = Transformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
-            self.temporal_transformer = Transformer(dim, temporal_depth, heads, dim_head, mlp_dim, dropout)
+            self.spatial_transformer = Transformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn)
+            self.temporal_transformer = Transformer(dim, temporal_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn)
         elif variant == 'factorized_self_attention':
             assert spatial_depth == temporal_depth, 'Spatial and temporal depth must be the same for factorized self-attention'
-            self.factorized_transformer = FactorizedTransformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
+            self.factorized_transformer = FactorizedTransformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn)
 
         self.pool = pool
         self.to_latent = nn.Identity()
@@ -166,7 +193,7 @@ class ViT(nn.Module):
         self.mlp_head = nn.Linear(dim, num_classes)
         self.variant = variant
 
-    def forward(self, video):
+    def forward(self, video, mask=None):
         x = self.to_patch_embedding(video)
         b, f, n, _ = x.shape
 
@@ -197,10 +224,15 @@ class ViT(nn.Module):
 
                 x = torch.cat((temporal_cls_tokens, x), dim = 1)
             
+            if mask is not None:
+                temporal_mask = torch.ones((b, f+1), device=x.device, dtype=torch.bool)
+                temporal_mask[:, 1:] = mask
+            else:
+                temporal_mask = None
 
             # attend across time
 
-            x = self.temporal_transformer(x)
+            x = self.temporal_transformer(x, mask=temporal_mask)
 
             # excise out temporal cls token or average pool
 

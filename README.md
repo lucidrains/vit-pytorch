@@ -2225,4 +2225,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{qiu2025gatedattentionlargelanguage,
+    title   = {Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free}, 
+    author  = {Zihan Qiu and Zekun Wang and Bo Zheng and Zeyu Huang and Kaiyue Wen and Songlin Yang and Rui Men and Le Yu and Fei Huang and Suozhi Huang and Dayiheng Liu and Jingren Zhou and Junyang Lin},
+    year    = {2025},
+    eprint  = {2505.06708},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CL},
+    url     = {https://arxiv.org/abs/2505.06708}, 
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

@@ -31,7 +31,8 @@ class Attention(Module):
         heads = 8,
         dim_head = 64,
         dropout = 0.,
-        norm_eps = 1e-6
+        norm_eps = 1e-6,
+        gate_attn = False
     ):
         super().__init__()
         self.heads = heads
@@ -46,6 +47,12 @@ class Attention(Module):
 
         self.to_q = nn.Linear(dim, inner_dim)
         self.to_kv = nn.Linear(dim_context, inner_dim * 2)
+
+        self.to_out_gates = nn.Sequential(
+            nn.Linear(dim, heads),
+            Rearrange('b ... h -> b h ... 1'),
+            nn.Sigmoid()
+        ) if gate_attn else None
 
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, dim),
@@ -70,6 +77,10 @@ class Attention(Module):
         attn = sim.softmax(dim = -1)
 
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
+
+        if exists(self.to_out_gates):
+            out = out * self.to_out_gates(x) # https://arxiv.org/abs/2505.06708
+
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
@@ -237,7 +248,7 @@ class SigLIPVAT(Module):
             self.layers.append(ModuleList([
                 maybe_film,
                 maybe_self_attn,
-                Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout, gate_attn = True),
                 FeedForward(dim = dim, dim_inner = mlp_dim)
             ]))
 

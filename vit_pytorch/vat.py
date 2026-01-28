@@ -92,6 +92,12 @@ class Attention(Module):
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
         self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
 
+        self.to_out_gates = nn.Sequential(
+            nn.Linear(dim, heads),
+            Rearrange('b ... h -> b h ... 1'),
+            nn.Sigmoid()
+        )
+
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, dim),
             nn.Dropout(dropout)
@@ -122,6 +128,8 @@ class Attention(Module):
         attn = self.dropout(attn)
 
         out = torch.matmul(attn, v)
+        out = out * self.to_out_gates(x) # https://arxiv.org/abs/2505.06708
+
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 

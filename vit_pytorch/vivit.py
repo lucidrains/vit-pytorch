@@ -89,7 +89,6 @@ class Attention(Module):
             dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
             if exists(mask):
-                mask = rearrange(mask, 'b j -> b 1 1 j')
                 dots = dots.masked_fill(~mask, -torch.finfo(dots.dtype).max)
 
             attn = self.attend(dots)
@@ -109,7 +108,7 @@ class Transformer(Module):
         self.layers = ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_flash_attn = use_flash_attn),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 

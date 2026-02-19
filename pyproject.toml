@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vit-pytorch"
-version = "1.17.8"
+version = "1.18.0"
 description = "Vision Transformer (ViT) - Pytorch"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
@@ -31,8 +31,8 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-  "einops>=0.7.0",
-  "torch>=1.10",
+  "einops>=0.8.2",
+  "torch>=2.4",
   "torchvision",
 ]
 
@@ -44,8 +44,8 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/lucidrains/vit-pytorch"
-Repository = "https://github.com/lucidrains/vit-pytorch"
+Homepage = "https://codeberg.org/lucidrains/vit-pytorch"
+Repository = "https://codeberg.org/lucidrains/vit-pytorch"
 
 [tool.setuptools]
 include-package-data = true

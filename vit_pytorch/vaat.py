@@ -442,7 +442,8 @@ class VAAT(Module):
         self_attn_heads = 4,
         self_attn_dim_head = 32,
         ast_layer_indices: tuple[int, ...] | None = None,
-        vit_layer_indices: tuple[int, ...] | None = None
+        vit_layer_indices: tuple[int, ...] | None = None,
+        num_advantage_bins = 0
     ):
         super().__init__()
 
@@ -480,7 +481,7 @@ class VAAT(Module):
 
         assert len(ast_layer_indices) == depth, f'number of ast layer indices {len(ast_layer_indices)} does not much the VAAT depth {depth}'
 
-        self.register_buffer('ast_layer_indices', tensor(vit_layer_indices), persistent = False)
+        self.register_buffer('ast_layer_indices', tensor(ast_layer_indices), persistent = False)
 
         # handle maybe multiple frames
 
@@ -510,6 +511,14 @@ class VAAT(Module):
         # to action tokens
 
         self.action_pos_emb = nn.Parameter(torch.randn(action_chunk_len, dim) * 1e-2)
+
+        # handle maybe advantage conditioning
+
+        self.has_advantages = num_advantage_bins > 0
+        self.num_advantage_bins = num_advantage_bins
+
+        if self.has_advantages:
+            self.advantage_emb = nn.Embedding(num_advantage_bins + 1, dim)
 
         self.layers = ModuleList([])
 
@@ -542,12 +551,13 @@ class VAAT(Module):
         *,
         extra = None,     # (b d)                - batch, dim extra     
         tasks = None,     # (b)
+        advantages = None,# (b)
         actions = None,   # (b k d)              - batch, action chunk length, action dimension
         return_hiddens = False,
         freeze_vit = False,
         freeze_ast = False
     ):
-        batch = video_or_image.shape[0]
+        batch, device = video_or_image.shape[0], video_or_image.device
         return_loss = exists(actions)
 
         # handle some various input dimensions
@@ -655,53 +665,66 @@ class VAAT(Module):
 
         audio_context = rearrange(audio_hiddens, 'l b v n d -> l b (v n) d')
 
-        # get main action tokens and maybe append extra
+        # main action tokens
 
-        action_tokens = repeat(self.action_pos_emb, 'k d -> b k d', b = batch)
+        action_tokens = repeat(self.action_pos_emb, 'n d -> b n d', b = batch)
 
-        has_extra = exists(extra)
+        # maybe advantage tokens
 
-        if has_extra:
-            assert self.accept_extra_token
+        empty_token = action_tokens[:, 0:0]
 
-            extra_token = self.to_extra_token(extra)
+        maybe_advantage_embed = empty_token
 
-            action_tokens, packed_extra = pack([action_tokens, extra_token], 'b * d')
+        if self.has_advantages and exists(advantages):
+            if isinstance(advantages, int):
+                advantages = torch.full((batch,), advantages, device = device, dtype = torch.long)
+
+            maybe_advantage_embed = self.advantage_emb(advantages + 1)
 
         # register tokens
 
-        register_tokens = repeat(self.register_tokens, 'n d -> b n d', b = batch)
+        register_tokens = empty_token
 
-        action_tokens, registers_packed_shape = pack((register_tokens, action_tokens), 'b * d')
+        if exists(self.register_tokens):
+            register_tokens = repeat(self.register_tokens, 'n d -> b n d', b = batch)
 
-        # cross attention
+        # extra
 
-        hiddens = [action_tokens]
+        maybe_extra_embed = empty_token
+
+        has_extra = exists(extra)
+        if has_extra:
+            assert self.accept_extra_token
+
+            maybe_extra_embed = self.to_extra_token(extra)
+
+        # pack all tokens for attention
+
+        tokens, ps = pack((register_tokens, maybe_advantage_embed, action_tokens, maybe_extra_embed), 'b * d')
+
+        # transformer
+
+        hiddens = [tokens]
 
         for (maybe_film, maybe_self_attn, image_cross_attn, audio_cross_attn, ff), image_layer_context, audio_layer_context in zip(self.layers, image_context, audio_context):
 
-            if exists(tasks):
-                action_tokens = maybe_film(action_tokens, task_emb)
+            if exists(maybe_film) and exists(tasks):
+                tokens = maybe_film(tokens, task_emb)
 
-            action_tokens = image_cross_attn(action_tokens, image_layer_context) + action_tokens
+            tokens = image_cross_attn(tokens, image_layer_context) + tokens
 
-            action_tokens = audio_cross_attn(action_tokens, audio_layer_context) + action_tokens
+            tokens = audio_cross_attn(tokens, audio_layer_context) + tokens
 
             if exists(maybe_self_attn):
-                action_tokens = maybe_self_attn(action_tokens) + action_tokens
+                tokens = maybe_self_attn(tokens) + tokens
 
-            action_tokens = ff(action_tokens) + action_tokens
+            tokens = ff(tokens) + tokens
 
-            hiddens.append(action_tokens)
+            hiddens.append(tokens)
 
-        # unpack registers
+        # unpack register, advantage, action, and extra tokens
 
-        _, action_tokens = unpack(action_tokens, registers_packed_shape, 'b * d')
-
-        # maybe unpack extra
-
-        if has_extra:
-            action_tokens, _ = unpack(action_tokens, packed_extra, 'b * d')
+        maybe_register_embed, maybe_advantage_embed, action_tokens, maybe_extra_embed = unpack(tokens, ps, 'b * d')
 
         # norm and prediction
 
@@ -744,43 +767,51 @@ if __name__ == '__main__':
         mlp_dim = 384 * 4
     )
 
-    vaat = VAAT(
-        vit,
-        ast,
-        dim = 512,
-        depth = 9,
-        heads = 8,
-        dim_head = 64,
-        mlp_dim = 2048,
-        dim_action = 20,
-        action_chunk_len = 7,
-        time_seq_len = 4,
-        num_image_views = 2,
-        num_audio_views = 2,
-        num_tasks = 4,
-        add_self_attn = True,
-        dim_extra_token = 33,               # extra token with some variable dimension
-        vit_layer_indices = (               # extending on the paper, allow for any order of hiddens, and also allow for depth index (which equates to the final embedding output from the vit)
-            0, 0, 1, 1, 2, 2, 3, 3, 4
-        ),
-        ast_layer_indices = (
-            1, 1, 1, 2, 2, 2, 3, 3, 3
+    for num_adv_bins in (0, 2, 10):
+        vaat = VAAT(
+            vit,
+            ast,
+            dim = 512,
+            depth = 9,
+            heads = 8,
+            dim_head = 64,
+            mlp_dim = 2048,
+            dim_action = 20,
+            action_chunk_len = 7,
+            time_seq_len = 4,
+            num_image_views = 2,
+            num_audio_views = 2,
+            num_tasks = 4,
+            num_advantage_bins = num_adv_bins,
+            add_self_attn = True,
+            dim_extra_token = 33,               # extra token with some variable dimension
+            vit_layer_indices = (               # extending on the paper, allow for any order of hiddens, and also allow for depth index (which equates to the final embedding output from the vit)
+                0, 0, 1, 1, 2, 2, 3, 3, 4
+            ),
+            ast_layer_indices = (
+                1, 1, 1, 2, 2, 2, 3, 3, 3
+            )
         )
-    )
 
-    images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)
-    audio = torch.randn(2, 2, 14_100 * 5)
+        images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)
+        audio = torch.randn(2, 2, 14_100 * 5)
 
-    tasks = torch.randint(0, 4, (2,))
-    extra = torch.randn(2, 33)                 # extra internal state
+        tasks = torch.randint(0, 4, (2,))
+        extra = torch.randn(2, 33)                 # extra internal state
 
-    actions = torch.randn(2, 7, 20)         # actions for learning
+        # advantage conditioning
 
-    loss = vaat(images, audio, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
-    loss.backward()
+        advantages = None
+        if num_adv_bins > 0:
+            advantages = torch.randint(-1, num_adv_bins, (2,))
 
-    # after much training
+        actions = torch.randn(2, 7, 20)         # actions for learning
 
-    pred_actions, hiddens = vaat(images, audio, tasks = tasks, extra = extra, return_hiddens = True)
+        loss = vaat(images, audio, actions = actions, advantages = advantages, tasks = tasks, extra = extra, freeze_vit = True)
+        loss.backward()
 
-    assert pred_actions.shape == (2, 7, 20)
+        # after much training
+
+        pred_actions, hiddens = vaat(images, audio, advantages = advantages, tasks = tasks, extra = extra, return_hiddens = True)
+
+        assert pred_actions.shape == (2, 7, 20)

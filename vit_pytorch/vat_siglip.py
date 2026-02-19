@@ -188,6 +188,7 @@ class SigLIPVAT(Module):
         self_attn_heads = 4,
         self_attn_dim_head = 32,
         vit_layer_indices: tuple[int, ...] | None = None,
+        num_advantage_bins = 0,
         siglip_image_size = 224,
         siglip_patch_size = 14,
         siglip_dim = 1152,
@@ -239,6 +240,14 @@ class SigLIPVAT(Module):
         # to action tokens
 
         self.action_pos_emb = nn.Parameter(torch.randn(action_chunk_len, dim) * 1e-2)
+
+        # handle maybe advantage conditioning
+
+        self.has_advantages = num_advantage_bins > 0
+        self.num_advantage_bins = num_advantage_bins
+
+        if self.has_advantages:
+            self.advantage_emb = nn.Embedding(num_advantage_bins + 1, dim)
 
         self.layers = ModuleList([])
         for _ in range(depth):
@@ -333,15 +342,16 @@ class SigLIPVAT(Module):
 
     def forward(
         self,
-        video_or_image,   # (b v? c t? h w)
+        video_or_image,   # (b v? c t? h w) - batch, views [wrist + third person or more], channels, maybe time, height, width
         *,
-        extra = None,
-        tasks = None,
-        actions = None,
+        extra = None,     # (b d)           - batch, dim extra     
+        tasks = None,     # (b)
+        advantages = None,# (b)
+        actions = None,   # (b k d)         - batch, action chunk length, action dimension
         return_hiddens = False,
         freeze_vit = False
     ):
-        batch = video_or_image.shape[0]
+        batch, device = video_or_image.shape[0], video_or_image.device
         return_loss = exists(actions)
 
         # handle some various input dimensions
@@ -397,46 +407,62 @@ class SigLIPVAT(Module):
 
         context = rearrange(hiddens, 'l b v t n d -> l b (v t n) d')
 
-        # get main action tokens and maybe append extra
+        # main action tokens
 
-        action_tokens = repeat(self.action_pos_emb, 'k d -> b k d', b = batch)
+        action_tokens = repeat(self.action_pos_emb, 'n d -> b n d', b = batch)
 
-        has_extra = exists(extra)
-        if has_extra:
-            extra_token = self.to_extra_token(extra)
-            action_tokens, packed_extra = pack([action_tokens, extra_token], 'b * d')
+        # maybe advantage tokens
+
+        empty_token = action_tokens[:, 0:0]
+
+        maybe_advantage_embed = empty_token
+
+        if self.has_advantages and exists(advantages):
+            if isinstance(advantages, int):
+                advantages = torch.full((batch,), advantages, device = device, dtype = torch.long)
+
+            maybe_advantage_embed = self.advantage_emb(advantages + 1)
 
         # register tokens
 
-        register_tokens = repeat(self.register_tokens, 'n d -> b n d', b = batch)
-        action_tokens, registers_packed_shape = pack((register_tokens, action_tokens), 'b * d')
+        register_tokens = empty_token
 
-        # cross attention
+        if exists(self.register_tokens):
+            register_tokens = repeat(self.register_tokens, 'n d -> b n d', b = batch)
 
-        vat_hiddens = [action_tokens]
+        # extra
+
+        maybe_extra_embed = empty_token
+
+        has_extra = exists(extra)
+        if has_extra:
+            maybe_extra_embed = self.to_extra_token(extra)
+
+        # pack all tokens for attention
+
+        tokens, ps = pack((register_tokens, maybe_advantage_embed, action_tokens, maybe_extra_embed), 'b * d')
+
+        # transformer
+
+        vat_hiddens = [tokens]
 
         for (maybe_film, maybe_self_attn, cross_attn, ff), layer_context in zip(self.layers, context):
 
-            if exists(tasks):
-                action_tokens = maybe_film(action_tokens, task_emb)
+            if exists(maybe_film) and exists(tasks):
+                tokens = maybe_film(tokens, task_emb)
 
-            action_tokens = cross_attn(action_tokens, layer_context) + action_tokens
+            tokens = cross_attn(tokens, layer_context) + tokens
 
             if exists(maybe_self_attn):
-                action_tokens = maybe_self_attn(action_tokens) + action_tokens
+                tokens = maybe_self_attn(tokens) + tokens
 
-            action_tokens = ff(action_tokens) + action_tokens
+            tokens = ff(tokens) + tokens
 
-            vat_hiddens.append(action_tokens)
+            vat_hiddens.append(tokens)
 
-        # unpack registers
+        # unpack register, advantage, action, and extra tokens
 
-        _, action_tokens = unpack(action_tokens, registers_packed_shape, 'b * d')
-
-        # maybe unpack extra
-
-        if has_extra:
-            action_tokens, _ = unpack(action_tokens, packed_extra, 'b * d')
+        maybe_register_embed, maybe_advantage_embed, action_tokens, maybe_extra_embed = unpack(tokens, ps, 'b * d')
 
         # norm and prediction
 
@@ -456,32 +482,40 @@ class SigLIPVAT(Module):
 # quick test
 
 if __name__ == '__main__':
-    vat = SigLIPVAT(
-        num_tasks = 4,
-        dim_extra_token = 32,
-        time_seq_len = 2,
-        num_views = 2,
-        depth = 4,
-        vit_layer_indices = (               # extending on the paper, allow for any order of hiddens, and also allow for depth index (which equates to the final embedding output from the vit)
-            0, 1, 26, 27
+    for num_adv_bins in (0, 2, 10):
+        vat = SigLIPVAT(
+            num_tasks = 4,
+            dim_extra_token = 32,
+            time_seq_len = 2,
+            num_views = 2,
+            depth = 4,
+            num_advantage_bins = num_adv_bins,
+            vit_layer_indices = (               # extending on the paper, allow for any order of hiddens, and also allow for depth index (which equates to the final embedding output from the vit)
+                0, 1, 26, 27
+            )
         )
-    )
 
-    vat.load_siglip() # load siglip weights from hf
+        vat.load_siglip() # load siglip weights from hf
 
-    # inputs
+        # inputs
 
-    images = torch.randn(1, 2, 3, 2, 224, 224) # (b, v, c, t, h, w)
-    tasks = torch.randint(0, 4, (1,))
-    extra = torch.randn(1, 32)
+        images = torch.randn(1, 2, 3, 2, 224, 224) # (b, v, c, t, h, w)
+        tasks = torch.randint(0, 4, (1,))
+        extra = torch.randn(1, 32)
 
-    actions = torch.randn(1, 50, 32) # actions for learning
+        # advantage conditioning
 
-    loss = vat(images, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
-    loss.backward()
+        advantages = None
+        if num_adv_bins > 0:
+            advantages = torch.randint(-1, num_adv_bins, (1,))
 
-    # after much training
+        actions = torch.randn(1, 50, 32) # actions for learning
 
-    pred_actions = vat(images, tasks = tasks, extra = extra)
-    
-    assert pred_actions.shape == (1, 50, 32)
+        loss = vat(images, actions = actions, advantages = advantages, tasks = tasks, extra = extra, freeze_vit = True)
+        loss.backward()
+
+        # after much training
+
+        pred_actions = vat(images, advantages = advantages, tasks = tasks, extra = extra)
+        
+        assert pred_actions.shape == (1, 50, 32)

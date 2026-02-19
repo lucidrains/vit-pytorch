@@ -2233,7 +2233,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
     eprint  = {2505.06708},
     archivePrefix = {arXiv},
     primaryClass = {cs.CL},
-    url     = {https://arxiv.org/abs/2505.06708}, 
+    url     = {https://arxiv.org/abs/2505.06708}
 }
 ```
 
@@ -2246,6 +2246,18 @@ Coming from computer vision and new to transformers? Here are some resources tha
     archivePrefix = {arXiv},
     primaryClass = {cs.LG},
     url     = {https://arxiv.org/abs/2601.19895}, 
+}
+```
+
+```bibtex
+@misc{intelligence2025pi06vlalearnsexperience,
+      title     = {$\pi^{*}_{0.6}$: a VLA That Learns From Experience}, 
+      author    = {Physical Intelligence and Ali Amin and Raichelle Aniceto and Ashwin Balakrishna and Kevin Black and Ken Conley and Grace Connors and James Darpinian and Karan Dhabalia and Jared DiCarlo and Danny Driess and Michael Equi and Adnan Esmail and Yunhao Fang and Chelsea Finn and Catherine Glossop and Thomas Godden and Ivan Goryachev and Lachy Groom and Hunter Hancock and Karol Hausman and Gashon Hussein and Brian Ichter and Szymon Jakubczak and Rowan Jen and Tim Jones and Ben Katz and Liyiming Ke and Chandra Kuchi and Marinda Lamb and Devin LeBlanc and Sergey Levine and Adrian Li-Bell and Yao Lu and Vishnu Mano and Mohith Mothukuri and Suraj Nair and Karl Pertsch and Allen Z. Ren and Charvi Sharma and Lucy Xiaoyang Shi and Laura Smith and Jost Tobias Springenberg and Kyle Stachowicz and Will Stoeckle and Alex Swerdlow and James Tanner and Marcel Torne and Quan Vuong and Anna Walling and Haohuan Wang and Blake Williams and Sukwon Yoo and Lili Yu and Ury Zhilinsky and Zhiyuan Zhou},
+      year      = {2025},
+      eprint    = {2511.14759},
+      archivePrefix = {arXiv},
+      primaryClass = {cs.LG},
+      url       = {https://arxiv.org/abs/2511.14759}, 
 }
 ```
 

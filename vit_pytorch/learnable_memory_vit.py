@@ -145,7 +145,7 @@ class ViT(nn.Module):
         return x
 
     def forward(self, img):
-        x = self.img_to_tokens(img)        
+        x = self.img_to_tokens(img)
 
         x = self.transformer(x)
 
@@ -160,7 +160,7 @@ class Adapter(nn.Module):
         *,
         vit,
         num_memories_per_layer = 10,
-        num_classes = 2,   
+        num_classes = 2,
     ):
         super().__init__()
         assert isinstance(vit, ViT)
@@ -188,7 +188,7 @@ class Adapter(nn.Module):
         )
 
         # specialized attention mask to preserve the output of the original ViT
-        # it allows the memory CLS token to attend to all other tokens (and the learnable memory layer tokens), but not vice versa        
+        # it allows the memory CLS token to attend to all other tokens (and the learnable memory layer tokens), but not vice versa
 
         attn_mask = torch.ones((num_patches, num_patches), dtype = torch.bool)
         attn_mask = F.pad(attn_mask, (1, num_memories_per_layer), value = False)  # main tokens cannot attend to learnable memories per layer
@@ -203,7 +203,7 @@ class Adapter(nn.Module):
         # add task specific memory tokens
 
         memory_cls_tokens = repeat(self.memory_cls_token, 'd -> b 1 d', b = b)
-        tokens = torch.cat((memory_cls_tokens, tokens), dim = 1)        
+        tokens = torch.cat((memory_cls_tokens, tokens), dim = 1)
 
         # pass memories along with image tokens through transformer for attending
 

@@ -35,7 +35,7 @@ def FeedForward(dim, hidden_dim):
         nn.Linear(dim, hidden_dim),
         nn.GELU(),
         nn.Linear(hidden_dim, dim),
-    )    
+    )
 
 class Attention(Module):
     def __init__(self, dim, heads = 8, dim_head = 64):

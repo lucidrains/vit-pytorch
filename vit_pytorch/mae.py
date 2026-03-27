@@ -52,7 +52,7 @@ class MAE(nn.Module):
         if self.encoder.pool == "cls":
             tokens += self.encoder.pos_embedding[:, 1:(num_patches + 1)]
         elif self.encoder.pool == "mean":
-            tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype) 
+            tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype)
 
         # calculate of patches needed to be masked, and get random indices, dividing it up for mask vs unmasked
 
@@ -87,7 +87,7 @@ class MAE(nn.Module):
         mask_tokens = mask_tokens + self.decoder_pos_emb(masked_indices)
 
         # concat the masked tokens to the decoder tokens and attend with decoder
-        
+
         decoder_tokens = torch.zeros(batch, num_patches, self.decoder_dim, device=device)
         decoder_tokens[batch_range, unmasked_indices] = unmasked_decoder_tokens
         decoder_tokens[batch_range, masked_indices] = mask_tokens

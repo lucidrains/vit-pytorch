@@ -187,7 +187,7 @@ class InteractiveWindowedSelfAttention(nn.Module):
 
         out = rearrange(out, '(b x y) h (w1 w2) d -> b (h d) (x w1) (y w2)', x = height // wsz_h, y = width // wsz_w, w1 = wsz_h, w2 = wsz_w)
 
-        # add LIM output 
+        # add LIM output
 
         out = out + local_out
 

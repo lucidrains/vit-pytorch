@@ -64,7 +64,7 @@ class Attention(Module):
         self.to_out = nn.Linear(dim_inner, dim, bias = False)
 
     def forward(
-        self, 
+        self,
         x,
         context: Tensor | None = None
     ):

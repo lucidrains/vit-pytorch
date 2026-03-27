@@ -72,7 +72,7 @@ class Dropsample(Module):
     def __init__(self, prob = 0):
         super().__init__()
         self.prob = prob
-  
+
     def forward(self, x):
         device = x.device
 

@@ -41,7 +41,7 @@ def posemb_sincos_2d(
     omega = temperature ** -omega
 
     y = y.flatten()[:, None] * omega[None, :]
-    x = x.flatten()[:, None] * omega[None, :] 
+    x = x.flatten()[:, None] * omega[None, :]
 
     pe = cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
     pe = pe.type(dtype)
@@ -549,7 +549,7 @@ class VAAT(Module):
         video_or_image,   # (b v? c t? h w)      - batch, views [wrist + third person or more], channels, maybe time, height, width
         audio_or_spec,    # (b v? t) | (b v?f t) - batch, audio len | batch, spec freq, time
         *,
-        extra = None,     # (b d)                - batch, dim extra     
+        extra = None,     # (b d)                - batch, dim extra
         tasks = None,     # (b)
         advantages = None,# (b)
         actions = None,   # (b k d)              - batch, action chunk length, action dimension

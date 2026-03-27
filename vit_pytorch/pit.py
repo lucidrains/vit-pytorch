@@ -154,7 +154,7 @@ class PiT(nn.Module):
 
         for ind, (layer_depth, layer_heads) in enumerate(zip(depth, heads)):
             not_last = ind < (len(depth) - 1)
-            
+
             layers.append(Transformer(dim, layer_depth, layer_heads, dim_head, mlp_dim, dropout))
 
             if not_last:

@@ -26,7 +26,7 @@ class AcceptVideoWrapper(Module):
         dim_emb = None,
         time_seq_len = None,
         embed_is_channel_first = False,
-        output_pos_add_pos_emb = 0, # defaults to first output position to add embedding 
+        output_pos_add_pos_emb = 0, # defaults to first output position to add embedding
         proj_embed_to_dim = None
     ):
         super().__init__()

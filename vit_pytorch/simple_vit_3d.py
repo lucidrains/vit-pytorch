@@ -26,7 +26,7 @@ def posemb_sincos_3d(patches, temperature = 10000, dtype = torch.float32):
 
     z = z.flatten()[:, None] * omega[None, :]
     y = y.flatten()[:, None] * omega[None, :]
-    x = x.flatten()[:, None] * omega[None, :] 
+    x = x.flatten()[:, None] * omega[None, :]
 
     pe = torch.cat((x.sin(), x.cos(), y.sin(), y.cos(), z.sin(), z.cos()), dim = 1)
 

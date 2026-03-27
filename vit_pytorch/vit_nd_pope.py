@@ -121,7 +121,7 @@ class FeedForward(Module):
             nn.Linear(hidden_dim, dim),
             nn.Dropout(dropout)
         )
-    
+
     def forward(self, x):
         return self.net(x)
 
@@ -130,14 +130,14 @@ class Attention(Module):
         super().__init__()
         inner_dim = dim_head * heads
         project_out = not (heads == 1 and dim_head == dim)
-        
+
         self.heads = heads
         self.scale = dim_head ** -0.5
-        
+
         self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
-        
+
         self.to_qk = nn.Linear(dim, inner_dim * 2, bias = False)
         self.to_v = nn.Linear(dim, inner_dim, bias = False)
 
@@ -145,7 +145,7 @@ class Attention(Module):
             nn.Linear(inner_dim, dim),
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
-    
+
     def forward(self, x, polar_pos_emb = None):
         x = self.norm(x)
         qkv = (*self.to_qk(x).chunk(2, dim = -1), self.to_v(x))
@@ -156,12 +156,12 @@ class Attention(Module):
             freqs, bias = polar_pos_emb
             q = apply_polar_pos_emb(q, freqs)
             k = apply_polar_pos_emb(k, freqs + bias)
-        
+
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
-        
+
         attn = self.attend(dots)
         attn = self.dropout(attn)
-        
+
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
@@ -180,7 +180,7 @@ class Transformer(Module):
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
-    
+
     def forward(self, x, pos = None):
 
         # pope embedding
@@ -219,45 +219,45 @@ class ViTND(Module):
         pope_init_learned_bias_uniform = False
     ):
         super().__init__()
-        
+
         assert 1 <= ndim <= 7, 'ndim must be between 1 and 7'
-        
+
         self.ndim = ndim
-        
+
         input_shape = ensure_tuple(input_shape, ndim)
         patch_size = ensure_tuple(patch_size, ndim)
-        
+
         for i, (inp_dim, patch_dim) in enumerate(zip(input_shape, patch_size)):
             assert inp_dim % patch_dim == 0, f'Input dimension {i} ({inp_dim}) must be divisible by patch size ({patch_dim})'
-        
+
         num_patches_per_dim = [inp_dim // patch_dim for inp_dim, patch_dim in zip(input_shape, patch_size)]
         num_patches = 1
         for n in num_patches_per_dim:
             num_patches *= n
-        
+
         patch_dim = channels
         for p in patch_size:
             patch_dim *= p
-        
+
         dim_names = 'fghijkl'[:ndim]
-        
+
         input_dims = [f'({d} p{i})' for i, d in enumerate(dim_names)]
         patch_dims = [f'p{i}' for i in range(ndim)]
-        
+
         input_pattern = f'b c {join(input_dims)}'
         output_pattern = f'b {join(dim_names)} ({join(patch_dims)} c)'
         rearrange_str = f'{input_pattern} -> {output_pattern}'
-        
+
         rearrange_kwargs = {f'p{i}': p for i, p in enumerate(patch_size)}
-        
+
         self.to_patch_embedding = nn.Sequential(
             Rearrange(rearrange_str, **rearrange_kwargs),
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
         )
-        
+
         self.dropout = nn.Dropout(emb_dropout)
-        
+
         # golden gate pope
 
         self.polar_emb = GoldenGatePoPENd(
@@ -269,12 +269,12 @@ class ViTND(Module):
             p_zero_freqs = pope_p_zero_freqs,
             init_learned_bias_uniform = pope_init_learned_bias_uniform
         )
-        
+
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, polar_emb = self.polar_emb)
-        
+
         self.to_latent = nn.Identity()
         self.mlp_head = nn.Linear(dim, num_classes)
-    
+
     def muon_parameters(self):
         params = []
 
@@ -298,9 +298,9 @@ class ViTND(Module):
         return_embed = False
     ):
         x = self.to_patch_embedding(x) # (b, *spatial_dims, patch_dim)
-        
+
         batch, *spatial_dims, _, device = *x.shape, x.device
-        
+
         # Generate position coordinates
 
         grids = [arange(d, device = device, dtype = torch.float32) for d in spatial_dims]
@@ -308,12 +308,12 @@ class ViTND(Module):
         pos = stack(grid, dim = -1)  # (*spatial_dims, ndim)
 
         # flatten spatial dimensions for attention with nd rotary
-        
+
         pos = repeat(pos, '... p -> b (...) p', b = batch)
         x, packed_shape = pack([x], 'b * d')
 
         x = self.dropout(x)
-        
+
         embed = self.transformer(x, pos)
 
         # return the embed with reconstituted patch shape
@@ -330,7 +330,7 @@ class ViTND(Module):
         return self.mlp_head(pooled)
 
 if __name__ == '__main__':
-  
+
     model = ViTND(
         ndim = 5,
         input_shape = (4, 8, 16, 32, 64),

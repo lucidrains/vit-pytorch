@@ -290,13 +290,13 @@ class SigLIPVAT(Module):
         # Auto-detect prefix based on keys
         with safe_open(weights_path, framework = 'pt') as f:
             keys = f.keys()
-            
+
             vi_p = ''
             if any(k.startswith('paligemma_with_expert.paligemma.model.vision_tower.vision_model') for k in keys):
                 vi_p = 'paligemma_with_expert.paligemma.model.vision_tower.vision_model.'
             elif any(k.startswith('vision_model') for k in keys):
                 vi_p = 'vision_model.'
-            
+
             pz_state = self.vit.state_dict()
 
             def copy_weight_bias(pz_prefix, vi_prefix):
@@ -344,7 +344,7 @@ class SigLIPVAT(Module):
         self,
         video_or_image,   # (b v? c t? h w) - batch, views [wrist + third person or more], channels, maybe time, height, width
         *,
-        extra = None,     # (b d)           - batch, dim extra     
+        extra = None,     # (b d)           - batch, dim extra
         tasks = None,     # (b)
         advantages = None,# (b)
         actions = None,   # (b k d)         - batch, action chunk length, action dimension
@@ -517,5 +517,5 @@ if __name__ == '__main__':
         # after much training
 
         pred_actions = vat(images, advantages = advantages, tasks = tasks, extra = extra)
-        
+
         assert pred_actions.shape == (1, 50, 32)

@@ -26,7 +26,7 @@ def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
     omega = 1. / (temperature ** omega)
 
     y = y.flatten()[:, None] * omega[None, :]
-    x = x.flatten()[:, None] * omega[None, :] 
+    x = x.flatten()[:, None] * omega[None, :]
     pe = torch.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
     return pe.type(dtype)
 
@@ -57,7 +57,7 @@ class Attend(nn.Module):
         config = self.cuda_config if q.is_cuda else self.cpu_config
 
         # flash attention - https://arxiv.org/abs/2205.14135
-        
+
         with torch.backends.cuda.sdp_kernel(**config._asdict()):
             out = F.scaled_dot_product_attention(q, k, v)
 

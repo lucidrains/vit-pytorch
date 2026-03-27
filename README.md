@@ -90,26 +90,26 @@ preds = v(img) # (1, 1000)
 
 ## Parameters
 
-- `image_size`: int.  
+- `image_size`: int.
 Image size. If you have rectangular images, make sure your image size is the maximum of the width and height
-- `patch_size`: int.  
-Size of patches. `image_size` must be divisible by `patch_size`.  
+- `patch_size`: int.
+Size of patches. `image_size` must be divisible by `patch_size`.
 The number of patches is: ` n = (image_size // patch_size) ** 2` and `n` **must be greater than 16**.
-- `num_classes`: int.  
+- `num_classes`: int.
 Number of classes to classify.
-- `dim`: int.  
+- `dim`: int.
 Last dimension of output tensor after linear transformation `nn.Linear(..., dim)`.
-- `depth`: int.  
+- `depth`: int.
 Number of Transformer blocks.
-- `heads`: int.  
-Number of heads in Multi-head Attention layer. 
-- `mlp_dim`: int.  
-Dimension of the MLP (FeedForward) layer. 
-- `channels`: int, default `3`.  
-Number of image's channels. 
-- `dropout`: float between `[0, 1]`, default `0.`.  
-Dropout rate. 
-- `emb_dropout`: float between `[0, 1]`, default `0`.  
+- `heads`: int.
+Number of heads in Multi-head Attention layer.
+- `mlp_dim`: int.
+Dimension of the MLP (FeedForward) layer.
+- `channels`: int, default `3`.
+Number of image's channels.
+- `dropout`: float between `[0, 1]`, default `0.`.
+Dropout rate.
+- `emb_dropout`: float between `[0, 1]`, default `0`.
 Embedding dropout rate.
 - `pool`: string, either `cls` token pooling or `mean` pooling
 
@@ -972,7 +972,7 @@ torch.save(model.state_dict(), './pretrained-net.pt')
 
 <img src="./images/mp3.png" width="400px"></img>
 
-New <a href="https://arxiv.org/abs/2207.07611">paper</a> that introduces masked position prediction pre-training criteria. This strategy is more efficient than the Masked Autoencoder strategy and has comparable performance.  
+New <a href="https://arxiv.org/abs/2207.07611">paper</a> that introduces masked position prediction pre-training criteria. This strategy is more efficient than the Masked Autoencoder strategy and has comparable performance.
 
 ```python
 import torch
@@ -1361,7 +1361,7 @@ learner = Dino(
     num_classes_K = 65536,             # output logits dimensions (referenced as K in paper)
     student_temp = 0.9,                # student temperature
     teacher_temp = 0.04,               # teacher temperature, needs to be annealed from 0.04 to 0.07 over 30 epochs
-    local_upper_crop_scale = 0.4,      # upper bound for local crop - 0.4 was recommended in the paper 
+    local_upper_crop_scale = 0.4,      # upper bound for local crop - 0.4 was recommended in the paper
     global_lower_crop_scale = 0.5,     # lower bound for global crop - 0.5 was recommended in the paper
     moving_average_decay = 0.9,        # moving average of encoder - paper showed anywhere from 0.9 to 0.999 was ok
     center_moving_average_decay = 0.9, # moving average of teacher centers - paper showed anywhere from 0.9 to 0.999 was ok
@@ -1735,7 +1735,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{touvron2020training,
-    title   = {Training data-efficient image transformers & distillation through attention}, 
+    title   = {Training data-efficient image transformers & distillation through attention},
     author  = {Hugo Touvron and Matthieu Cord and Matthijs Douze and Francisco Massa and Alexandre Sablayrolles and Hervé Jégou},
     year    = {2020},
     eprint  = {2012.12877},
@@ -1768,7 +1768,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{touvron2021going,
-    title   = {Going deeper with Image Transformers}, 
+    title   = {Going deeper with Image Transformers},
     author  = {Hugo Touvron and Matthieu Cord and Alexandre Sablayrolles and Gabriel Synnaeve and Hervé Jégou},
     year    = {2021},
     eprint  = {2103.17239},
@@ -1801,7 +1801,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{heo2021rethinking,
-    title   = {Rethinking Spatial Dimensions of Vision Transformers}, 
+    title   = {Rethinking Spatial Dimensions of Vision Transformers},
     author  = {Byeongho Heo and Sangdoo Yun and Dongyoon Han and Sanghyuk Chun and Junsuk Choe and Seong Joon Oh},
     year    = {2021},
     eprint  = {2103.16302},
@@ -1845,7 +1845,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{su2021roformer,
-    title   = {RoFormer: Enhanced Transformer with Rotary Position Embedding}, 
+    title   = {RoFormer: Enhanced Transformer with Rotary Position Embedding},
     author  = {Jianlin Su and Yu Lu and Shengfeng Pan and Bo Wen and Yunfeng Liu},
     year    = {2021},
     eprint  = {2104.09864},
@@ -1867,7 +1867,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{chen2021regionvit,
-    title   = {RegionViT: Regional-to-Local Attention for Vision Transformers}, 
+    title   = {RegionViT: Regional-to-Local Attention for Vision Transformers},
     author  = {Chun-Fu Chen and Rameswar Panda and Quanfu Fan},
     year    = {2021},
     eprint  = {2106.02689},
@@ -1878,7 +1878,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{wang2021crossformer,
-    title   = {CrossFormer: A Versatile Vision Transformer Hinging on Cross-scale Attention}, 
+    title   = {CrossFormer: A Versatile Vision Transformer Hinging on Cross-scale Attention},
     author  = {Wenxiao Wang and Lu Yao and Long Chen and Binbin Lin and Deng Cai and Xiaofei He and Wei Liu},
     year    = {2021},
     eprint  = {2108.00154},
@@ -1900,7 +1900,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{he2021masked,
-    title   = {Masked Autoencoders Are Scalable Vision Learners}, 
+    title   = {Masked Autoencoders Are Scalable Vision Learners},
     author  = {Kaiming He and Xinlei Chen and Saining Xie and Yanghao Li and Piotr Dollár and Ross Girshick},
     year    = {2021},
     eprint  = {2111.06377},
@@ -1911,7 +1911,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{xie2021simmim,
-    title   = {SimMIM: A Simple Framework for Masked Image Modeling}, 
+    title   = {SimMIM: A Simple Framework for Masked Image Modeling},
     author  = {Zhenda Xie and Zheng Zhang and Yue Cao and Yutong Lin and Jianmin Bao and Zhuliang Yao and Qi Dai and Han Hu},
     year    = {2021},
     eprint  = {2111.09886},
@@ -1944,7 +1944,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{lee2021vision,
-    title   = {Vision Transformer for Small-Size Datasets}, 
+    title   = {Vision Transformer for Small-Size Datasets},
     author  = {Seung Hoon Lee and Seunghyun Lee and Byung Cheol Song},
     year    = {2021},
     eprint  = {2112.13492},
@@ -1966,7 +1966,7 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{yang2022scalablevit,
-    title   = {ScalableViT: Rethinking the Context-oriented Generalization of Vision Transformer}, 
+    title   = {ScalableViT: Rethinking the Context-oriented Generalization of Vision Transformer},
     author  = {Rui Yang and Hailong Ma and Jie Wu and Yansong Tang and Xuefeng Xiao and Min Zheng and Xiu Li},
     year    = {2022},
     eprint  = {2203.10790},
@@ -2203,31 +2203,31 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{carrigg2025decorrelationspeedsvisiontransformers,
-    title   = {Decorrelation Speeds Up Vision Transformers}, 
+    title   = {Decorrelation Speeds Up Vision Transformers},
     author  = {Kieran Carrigg and Rob van Gastel and Melda Yeghaian and Sander Dalm and Faysal Boughorbel and Marcel van Gerven},
     year    = {2025},
     eprint  = {2510.14657},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV},
-    url     = {https://arxiv.org/abs/2510.14657}, 
+    url     = {https://arxiv.org/abs/2510.14657},
 }
 ```
 
 ```bibtex
 @misc{gopalakrishnan2025decouplingwhatwherepolar,
-    title   = {Decoupling the "What" and "Where" With Polar Coordinate Positional Embeddings}, 
+    title   = {Decoupling the "What" and "Where" With Polar Coordinate Positional Embeddings},
     author  = {Anand Gopalakrishnan and Robert Csordás and Jürgen Schmidhuber and Michael C. Mozer},
     year    = {2025},
     eprint  = {2509.10534},
     archivePrefix = {arXiv},
     primaryClass = {cs.LG},
-    url     = {https://arxiv.org/abs/2509.10534}, 
+    url     = {https://arxiv.org/abs/2509.10534},
 }
 ```
 
 ```bibtex
 @misc{qiu2025gatedattentionlargelanguage,
-    title   = {Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free}, 
+    title   = {Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free},
     author  = {Zihan Qiu and Zekun Wang and Bo Zheng and Zeyu Huang and Kaiyue Wen and Songlin Yang and Rui Men and Le Yu and Fei Huang and Suozhi Huang and Dayiheng Liu and Jingren Zhou and Junyang Lin},
     year    = {2025},
     eprint  = {2505.06708},
@@ -2239,25 +2239,49 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{chen2026postlayernormbackstableexpressive,
-    title   = {Post-LayerNorm Is Back: Stable, ExpressivE, and Deep}, 
+    title   = {Post-LayerNorm Is Back: Stable, ExpressivE, and Deep},
     author  = {Chen Chen and Lai Wei},
     year    = {2026},
     eprint  = {2601.19895},
     archivePrefix = {arXiv},
     primaryClass = {cs.LG},
-    url     = {https://arxiv.org/abs/2601.19895}, 
+    url     = {https://arxiv.org/abs/2601.19895},
 }
 ```
 
 ```bibtex
 @misc{intelligence2025pi06vlalearnsexperience,
-      title     = {$\pi^{*}_{0.6}$: a VLA That Learns From Experience}, 
+      title     = {$\pi^{*}_{0.6}$: a VLA That Learns From Experience},
       author    = {Physical Intelligence and Ali Amin and Raichelle Aniceto and Ashwin Balakrishna and Kevin Black and Ken Conley and Grace Connors and James Darpinian and Karan Dhabalia and Jared DiCarlo and Danny Driess and Michael Equi and Adnan Esmail and Yunhao Fang and Chelsea Finn and Catherine Glossop and Thomas Godden and Ivan Goryachev and Lachy Groom and Hunter Hancock and Karol Hausman and Gashon Hussein and Brian Ichter and Szymon Jakubczak and Rowan Jen and Tim Jones and Ben Katz and Liyiming Ke and Chandra Kuchi and Marinda Lamb and Devin LeBlanc and Sergey Levine and Adrian Li-Bell and Yao Lu and Vishnu Mano and Mohith Mothukuri and Suraj Nair and Karl Pertsch and Allen Z. Ren and Charvi Sharma and Lucy Xiaoyang Shi and Laura Smith and Jost Tobias Springenberg and Kyle Stachowicz and Will Stoeckle and Alex Swerdlow and James Tanner and Marcel Torne and Quan Vuong and Anna Walling and Haohuan Wang and Blake Williams and Sukwon Yoo and Lili Yu and Ury Zhilinsky and Zhiyuan Zhou},
       year      = {2025},
       eprint    = {2511.14759},
       archivePrefix = {arXiv},
       primaryClass = {cs.LG},
-      url       = {https://arxiv.org/abs/2511.14759}, 
+      url       = {https://arxiv.org/abs/2511.14759},
+}
+```
+
+```bibtex
+@misc{kimiteam2026attentionresiduals,
+    title   = {Attention Residuals},
+    author  = {Kimi Team and Guangyu Chen and Yu Zhang and Jianlin Su and Weixin Xu and Siyuan Pan and Yaoyu Wang and Yucheng Wang and Guanduo Chen and Bohong Yin and Yutian Chen and Junjie Yan and Ming Wei and Y. Zhang and Fanqing Meng and Chao Hong and Xiaotong Xie and Shaowei Liu and Enzhe Lu and Yunpeng Tai and Yanru Chen and Xin Men and Haiqing Guo and Y. Charles and Haoyu Lu and Lin Sui and Jinguo Zhu and Zaida Zhou and Weiran He and Weixiao Huang and Xinran Xu and Yuzhi Wang and Guokun Lai and Yulun Du and Yuxin Wu and Zhilin Yang and Xinyu Zhou},
+    year    = {2026},
+    eprint  = {2603.15031},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CL},
+    url     = {https://arxiv.org/abs/2603.15031},
+}
+```
+
+```bibtex
+@misc{balestriero2025lejepa,
+    title   = {LeJEPA: Provable and Scalable Self-Supervised Learning Without the Heuristics},
+    author  = {Randall Balestriero and Yann LeCun},
+    year    = {2025},
+    eprint  = {2511.08544},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.LG},
+    url     = {https://arxiv.org/abs/2511.08544},
 }
 ```
 

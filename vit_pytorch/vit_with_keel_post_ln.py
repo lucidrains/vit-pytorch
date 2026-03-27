@@ -103,7 +103,7 @@ class Transformer(Module):
 
         for layer_ind, layer in enumerate(self.layers):
             first_layer = layer_ind == 0
-        
+
             residual = x
 
             out = layer(x)

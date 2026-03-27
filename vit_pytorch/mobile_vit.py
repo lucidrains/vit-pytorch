@@ -161,7 +161,7 @@ class MobileViTBlock(nn.Module):
         # Global representations
         _, _, h, w = x.shape
         x = rearrange(x, 'b d (h ph) (w pw) -> b (ph pw) (h w) d', ph=self.ph, pw=self.pw)
-        x = self.transformer(x)        
+        x = self.transformer(x)
         x = rearrange(x, 'b (ph pw) (h w) d -> b d (h ph) (w pw)', h=h//self.ph, w=w//self.pw, ph=self.ph, pw=self.pw)
 
         # Fusion

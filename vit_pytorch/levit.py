@@ -182,7 +182,7 @@ class LeViT(nn.Module):
     def forward(self, img):
         x = self.conv_embedding(img)
 
-        x = self.backbone(x)        
+        x = self.backbone(x)
 
         x = self.pool(x)
 

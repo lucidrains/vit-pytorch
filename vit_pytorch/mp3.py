@@ -110,7 +110,7 @@ class ViT(nn.Module):
         patch_height, patch_width = pair(patch_size)
 
         assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
-        
+
         num_patches = (image_height // patch_height) * (image_width // patch_width)
         patch_dim = channels * patch_height * patch_width
 
@@ -178,7 +178,7 @@ class MP3(nn.Module):
 
         attended_tokens = self.vit.transformer(tokens, tokens_unmasked)
         logits = rearrange(self.mlp_head(attended_tokens), 'b n d -> (b n) d')
-        
+
         # Define labels
         labels = repeat(torch.arange(num_patches, device = device), 'n -> (b n)', b = batch)
         loss = F.cross_entropy(logits, labels)

@@ -146,7 +146,7 @@ class R2LTransformer(nn.Module):
         region_tokens = rearrange(region_tokens, 'b c h w -> b (h w) c')
 
         # calculate local relative positional bias
-        
+
         h_range = torch.arange(window_size_h, device = device)
         w_range = torch.arange(window_size_w, device = device)
 

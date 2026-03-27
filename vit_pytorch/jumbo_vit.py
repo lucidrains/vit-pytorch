@@ -103,7 +103,7 @@ class JumboViT(Module):
             h = image_height // patch_height,
             w = image_width // patch_width,
             dim = dim,
-        ) 
+        )
 
         jumbo_cls_dim = dim * jumbo_cls_k
 

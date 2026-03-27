@@ -34,7 +34,7 @@ def posemb_sincos_3d(patches, temperature = 10000, dtype = torch.float32):
 
     z = z.flatten()[:, None] * omega[None, :]
     y = y.flatten()[:, None] * omega[None, :]
-    x = x.flatten()[:, None] * omega[None, :] 
+    x = x.flatten()[:, None] * omega[None, :]
 
     pe = torch.cat((x.sin(), x.cos(), y.sin(), y.cos(), z.sin(), z.cos()), dim = 1)
 
@@ -52,7 +52,7 @@ class Attend(Module):
 
     def flash_attn(self, q, k, v):
         # flash attention - https://arxiv.org/abs/2205.14135
-        
+
         with torch.backends.cuda.sdp_kernel(**self.config._asdict()):
             out = F.scaled_dot_product_attention(q, k, v)
 

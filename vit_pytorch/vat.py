@@ -360,7 +360,7 @@ class VAT(Module):
         self,
         video_or_image,   # (b v? c t? h w) - batch, views [wrist + third person or more], channels, maybe time, height, width
         *,
-        extra = None,     # (b d)           - batch, dim extra     
+        extra = None,     # (b d)           - batch, dim extra
         tasks = None,     # (b)
         advantages = None,# (b)
         actions = None,   # (b k d)         - batch, action chunk length, action dimension

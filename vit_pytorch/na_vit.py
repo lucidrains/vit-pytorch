@@ -343,11 +343,11 @@ class NaViT(nn.Module):
 
         # need to know how many images for final attention pooling
 
-        num_images = torch.tensor(num_images, device = device, dtype = torch.long)        
+        num_images = torch.tensor(num_images, device = device, dtype = torch.long)
 
         # to patches
 
-        x = self.to_patch_embedding(patches)        
+        x = self.to_patch_embedding(patches)
 
         # factorized 2d absolute positional embedding
 

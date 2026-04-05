@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torch.nn import Module, ModuleList
 
 from einops import rearrange, repeat
@@ -49,14 +51,14 @@ class FeedForward(Module):
         return self.net(x)
 
 class Attention(Module):
-    def __init__(self, dim, heads = 8, dim_head = 64):
+    def __init__(self, dim, heads = 8, dim_head = 64, cross_attend = False):
         super().__init__()
         inner_dim = dim_head * heads
         self.heads = heads
         self.scale = dim_head ** -0.5
-        self.norm = nn.LayerNorm(dim)
 
-        self.attend = nn.Softmax(dim = -1)
+        self.norm = nn.LayerNorm(dim)
+        self.norm_context = nn.LayerNorm(dim) if cross_attend else None
 
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
@@ -64,98 +66,79 @@ class Attention(Module):
 
     def forward(self, x, context = None):
         x = self.norm(x)
-        context = default(context, x)
+
+        if exists(context):
+            context = self.norm_context(context)
+        else:
+            context = x
 
         q = self.to_q(x)
         k, v = self.to_kv(context).chunk(2, dim = -1)
 
-        q, k, v = tuple(rearrange(t, 'b n (h d) -> b h n d', h = self.heads) for t in (q, k, v))
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), (q, k, v))
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
-        attn = self.attend(dots)
+        attn = dots.softmax(dim = -1)
 
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class AttentionPool(Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, use_learned_query = True):
-        super().__init__()
-        self.use_learned_query = use_learned_query
-        self.norm_context = nn.LayerNorm(dim)
-        self.attn = Attention(dim, heads = heads, dim_head = dim_head)
-
-        if use_learned_query:
-            self.query = nn.Parameter(torch.randn(dim))
-
-    def forward(self, context, query = None):
-        batch = context.shape[0]
-
-        context = self.norm_context(context)
-
-        if self.use_learned_query:
-            q = repeat(self.query, 'd -> b 1 d', b = batch)
-        else:
-            q = query
-
-        return self.attn(q, context = context)
-
 class AttentionResidual(Module):
-    """
-    replaces the standard residual connection.
-    pools from a growing history of all previous outputs via attention,
-    then passes the result through the wrapped module (attn or ff).
-    the output is appended back to history (in-place list mutation).
-    """
-
-    def __init__(self, fn, dim, heads = 8, dim_head = 64, use_learned_query = True):
+    def __init__(self, fn, dim, heads = 8, dim_head = 64, learned_query = True, disable = False):
         super().__init__()
         self.fn = fn
-        self.attn_pool = AttentionPool(dim, heads = heads, dim_head = dim_head, use_learned_query = use_learned_query)
+        self.disable = disable
 
-    def forward(self, history):
+        if disable:
+            return
+
+        self.attn = Attention(dim, heads = heads, dim_head = dim_head, cross_attend = True)
+        self.learned_query = nn.Parameter(torch.randn(dim)) if learned_query else None
+
+    def forward(self, history: list[Tensor]) -> Tensor:
+        if self.disable:
+            return self.fn(last(history))
+
+        batch, seq_len = history[0].shape[:2]
+
         context = torch.stack(history, dim = 2)
-        b, n, l, d = context.shape
-
         context = rearrange(context, 'b n l d -> (b n) l d')
 
-        last_out = last(history)
-        query = rearrange(last_out, 'b n d -> (b n) 1 d')
+        if exists(self.learned_query):
+            q = repeat(self.learned_query, 'd -> (b n) 1 d', b = batch, n = seq_len)
+        else:
+            q = rearrange(last(history), 'b n d -> (b n) 1 d')
 
-        pooled = self.attn_pool(context, query = query)
+        pooled = self.attn(q, context = context)
+        pooled = rearrange(pooled, '(b n) 1 d -> b n d', b = batch, n = seq_len)
 
-        pooled = rearrange(pooled, '(b n) 1 d -> b n d', b = b, n = n)
-
-        out = self.fn(pooled)
-
-        # mutate history for subsequent layers
-        history.append(out)
-
-        return history
+        return self.fn(pooled)
 
 class Transformer(Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, use_learned_query = True):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, learned_query = True):
         super().__init__()
-        self.layers = ModuleList([])
+        self.norm = nn.LayerNorm(dim)
 
-        for _ in range(depth):
+        self.layers = ModuleList([])
+        for ind in range(depth):
+            is_first = ind == 0
+
             self.layers.append(ModuleList([
-                AttentionResidual(Attention(dim, heads = heads, dim_head = dim_head), dim, heads = heads, dim_head = dim_head, use_learned_query = use_learned_query),
-                AttentionResidual(FeedForward(dim, mlp_dim), dim, heads = heads, dim_head = dim_head, use_learned_query = use_learned_query)
+                AttentionResidual(Attention(dim, heads = heads, dim_head = dim_head), dim, heads = heads, dim_head = dim_head, learned_query = learned_query, disable = is_first),
+                AttentionResidual(FeedForward(dim, mlp_dim), dim, heads = heads, dim_head = dim_head, learned_query = learned_query),
             ]))
 
-        self.final_attn_pool = AttentionResidual(nn.LayerNorm(dim), dim, heads = heads, dim_head = dim_head, use_learned_query = use_learned_query)
+        self.final_pool = AttentionResidual(nn.Identity(), dim, heads = heads, dim_head = dim_head, learned_query = learned_query)
 
-    def forward(self, tokens):
-        history = [tokens]
+    def forward(self, x):
+        history = [x]
 
-        for attn_res, ff_res in self.layers:
-            history = attn_res(history)
-            history = ff_res(history)
+        for attn_residual, ff_residual in self.layers:
+            history.append(attn_residual(history))
+            history.append(ff_residual(history))
 
-        history = self.final_attn_pool(history)
-
-        return last(history)
+        return self.norm(self.final_pool(history))
 
 class SimpleViTAttnResidual(Module):
     def __init__(
@@ -170,7 +153,7 @@ class SimpleViTAttnResidual(Module):
         mlp_dim,
         channels = 3,
         dim_head = 64,
-        use_learned_query = True
+        learned_query = True
     ):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -193,7 +176,7 @@ class SimpleViTAttnResidual(Module):
             dim = dim,
         )
 
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, use_learned_query = use_learned_query)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, learned_query = learned_query)
 
         self.to_latent = nn.Identity()
         self.linear_head = nn.Linear(dim, num_classes)
@@ -205,14 +188,13 @@ class SimpleViTAttnResidual(Module):
         x += self.pos_embedding.to(device, dtype = dtype)
 
         x = self.transformer(x)
-
         x = x.mean(dim = 1)
 
         x = self.to_latent(x)
         return self.linear_head(x)
 
 if __name__ == '__main__':
-    for use_learned_query in (True, False):
+    for learned_query in (True, False):
         v = SimpleViTAttnResidual(
             image_size = 256,
             patch_size = 32,
@@ -221,7 +203,7 @@ if __name__ == '__main__':
             depth = 6,
             heads = 16,
             mlp_dim = 2048,
-            use_learned_query = use_learned_query
+            learned_query = learned_query
         )
 
         img = torch.randn(2, 3, 256, 256)

@@ -130,14 +130,26 @@ class Transformer(Module):
 
         self.final_pool = AttentionResidual(nn.LayerNorm(dim), dim, heads = heads, dim_head = dim_head, learned_query = learned_query)
 
-    def forward(self, x):
-        history = [x]
+    def forward(
+        self,
+        x,
+        history: list[Tensor] | None = None,
+        return_history = False
+    ):
+        history = [*default(history, [])]
+
+        history.append(x)
 
         for attn_residual, ff_residual in self.layers:
             history.append(attn_residual(history))
             history.append(ff_residual(history))
 
-        return self.final_pool(history)
+        out = self.final_pool(history)
+
+        if return_history:
+            return out, history
+
+        return out
 
 class SimpleViTAttnResidual(Module):
     def __init__(
@@ -180,17 +192,31 @@ class SimpleViTAttnResidual(Module):
         self.to_latent = nn.Identity()
         self.linear_head = nn.Linear(dim, num_classes)
 
-    def forward(self, img):
+    def forward(
+        self,
+        img,
+        history: list[Tensor] | None = None,
+        return_history = False
+    ):
         device, dtype = img.device, img.dtype
 
         x = self.to_patch_embedding(img)
         x += self.pos_embedding.to(device, dtype = dtype)
 
-        x = self.transformer(x)
+        x = self.transformer(x, history = history, return_history = return_history)
+
+        if return_history:
+            x, history = x
+
         x = x.mean(dim = 1)
 
         x = self.to_latent(x)
-        return self.linear_head(x)
+        out = self.linear_head(x)
+
+        if return_history:
+            return out, history
+
+        return out
 
 if __name__ == '__main__':
     for learned_query in (True, False):
@@ -206,6 +232,10 @@ if __name__ == '__main__':
         )
 
         img = torch.randn(2, 3, 256, 256)
-        preds = v(img)
+        preds, history = v(img, return_history = True)
+
+        assert preds.shape == (2, 1000)
+
+        preds, _ = v(img, history = history, return_history = True)
 
         assert preds.shape == (2, 1000)

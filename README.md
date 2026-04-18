@@ -2285,4 +2285,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{oh2026revisitingresidualconnectionsorthogonal,
+    title   = {Revisiting Residual Connections: Orthogonal Updates for Stable and Efficient Deep Networks}, 
+    author  = {Giyeong Oh and Woohyun Cho and Siyeol Kim and Suhwan Choi and Youngjae Yu},
+    year    = {2026},
+    eprint  = {2505.11881},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2505.11881}, 
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

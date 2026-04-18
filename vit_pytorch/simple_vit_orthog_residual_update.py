@@ -11,6 +11,9 @@ from einops.layers.torch import Rearrange
 
 # helpers
 
+def exists(v):
+    return v is not None
+
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
@@ -70,11 +73,19 @@ class OrthogonalResidualUpdate(Module):
     def __init__(
         self,
         block: Module,
-        double_precision = True
+        dim = None,
+        double_precision = True,
+        learned = False
     ):
         super().__init__()
         self.block = block
         self.double_precision = double_precision
+
+        self.learned = learned
+
+        if learned:
+            assert exists(dim)
+            self.to_modulation = nn.Linear(dim, 2)
 
     def orthog_proj(self, block_out, residual):
         use_double, dtype = self.double_precision, residual.dtype
@@ -91,19 +102,26 @@ class OrthogonalResidualUpdate(Module):
         # back to original dtype if double precision
 
         if use_double:
-            orthogonal = orthogonal.to(dtype)
+            parallel, orthogonal = parallel.to(dtype), orthogonal.to(dtype)
 
-        return orthogonal
+        return parallel, orthogonal
 
     def forward(self, residual):
         block_out = self.block(residual)
 
-        orthog_update = self.orthog_proj(block_out, residual)
+        parallel_update, orthog_update = self.orthog_proj(block_out, residual)
 
-        return residual + orthog_update
+        if self.learned:
+            parallel_mod, orthog_mod = self.to_modulation(block_out).sigmoid().split(1, dim = -1)
+            parallel_update = parallel_update * parallel_mod
+            orthog_update = orthog_update * orthog_mod
+        else:
+            parallel_update = 0
+
+        return residual + parallel_update + orthog_update
 
 class Transformer(Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, orthog_residual_update_kwargs: dict = dict()):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = ModuleList([])
@@ -113,8 +131,8 @@ class Transformer(Module):
             ff = FeedForward(dim, mlp_dim)
 
             self.layers.append(ModuleList([
-                OrthogonalResidualUpdate(attn),
-                OrthogonalResidualUpdate(ff)
+                OrthogonalResidualUpdate(attn, dim = dim, **orthog_residual_update_kwargs),
+                OrthogonalResidualUpdate(ff, dim = dim, **orthog_residual_update_kwargs)
             ]))
 
     def forward(self, x):
@@ -126,7 +144,7 @@ class Transformer(Module):
         return self.norm(x)
 
 class SimpleViT(Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, orthog_residual_update_kwargs: dict = dict()):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -148,7 +166,7 @@ class SimpleViT(Module):
             dim = dim,
         )
 
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, orthog_residual_update_kwargs)
 
         self.pool = "mean"
         self.to_latent = nn.Identity()
@@ -177,7 +195,10 @@ if __name__ == '__main__':
         dim = 512,
         depth = 2,
         heads = 4,
-        mlp_dim = 2048
+        mlp_dim = 2048,
+        orthog_residual_update_kwargs = dict(
+            learned = True
+        )
     )
 
     images = torch.randn(2, 3, 256, 256)

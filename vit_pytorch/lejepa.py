@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from torch.nn import Module
 import torch.nn.functional as F
+from torch import einsum
 
 from torchvision import transforms as T
 from einops import rearrange
@@ -64,7 +65,7 @@ def sigreg_loss(
 
     # empirical CF
 
-    x_t = torch.einsum('... d, m d -> ... m', x, rand_projs)
+    x_t = einsum('... d, m d -> ... m', x, rand_projs)
     x_t = rearrange(x_t, '... m -> (...) m')
 
     x_t = rearrange(x_t, 'n m -> n m 1') * t

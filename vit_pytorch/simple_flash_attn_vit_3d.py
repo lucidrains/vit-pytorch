@@ -2,10 +2,9 @@ from packaging import version
 from collections import namedtuple
 
 import torch
-from torch import nn
+from torch import nn, einsum
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList
-from torch import einsum
 
 from einops import rearrange
 from einops.layers.torch import Rearrange

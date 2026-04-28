@@ -2,10 +2,9 @@ import random
 from functools import wraps
 
 import torch
-from torch import nn
+from torch import nn, einsum
 from torch.nn import Module
 import torch.nn.functional as F
-from torch import einsum
 
 from torchvision import transforms as T
 from einops import rearrange

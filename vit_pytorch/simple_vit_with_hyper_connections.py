@@ -4,9 +4,8 @@ https://arxiv.org/abs/2409.19606
 """
 
 import torch
-from torch import nn, tensor
+from torch import nn, tensor, einsum
 from torch.nn import Module, ModuleList
-from torch import einsum
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange

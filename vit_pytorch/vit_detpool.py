@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # DetPool ViT - a vit that accepts an object mask and attends and pools only using that mask - table 1
 # Dantong Niu et al. - https://openreview.net/forum?id=NZDaMcpXZm
 
@@ -103,7 +105,7 @@ class Transformer(Module):
         return self.norm(x)
 
 class ViTDetPool(Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, use_cls_token = True, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, use_cls_token = True, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., mask_generator: Module | None = None):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -142,10 +144,15 @@ class ViTDetPool(Module):
 
         self.mlp_head = nn.Linear(dim, num_classes) if num_classes > 0 else None
 
+        self.mask_generator = mask_generator
+
     def forward(self, img, object_mask = None):
+        if not exists(object_mask) and exists(self.mask_generator):
+            object_mask = self.mask_generator(img)
+
         has_cls = self.use_cls_token
 
-        batch = img.shape[0]
+        batch, _, height, width = img.shape
         tokens = self.to_patch_embedding(img)
 
         seq = tokens.shape[1]
@@ -164,11 +171,12 @@ class ViTDetPool(Module):
         if exists(object_mask):
             assert object_mask.ndim in {3, 2}
 
-            if object_mask.ndim == 3:
+            if object_mask.shape == (batch, height, width):
                 mask = self.downsample_mask(object_mask)
-
-            elif object_mask.ndim == 2:
+            else:
                 mask = object_mask
+
+            mask = rearrange(mask, 'b ... -> b (...)')
 
             assert mask.shape == (batch, seq)
 
@@ -200,7 +208,7 @@ class ViTDetPool(Module):
 # quick test
 
 if __name__ == '__main__':
-    v = ViTDetPool(
+    vit = ViTDetPool(
         image_size = 256,
         patch_size = 32,
         num_classes = 1000,
@@ -215,24 +223,29 @@ if __name__ == '__main__':
     img = torch.randn(1, 3, 256, 256)
     object_mask = torch.randint(0, 2, (1, 256, 256)).bool()
 
-    preds = v(img, object_mask = object_mask)
+    preds = vit(img, object_mask = object_mask)
     assert preds.shape == (1, 1000)
 
-    preds_no_mask = v(img)
+    preds_no_mask = vit(img)
     assert preds_no_mask.shape == (1, 1000)
 
-    v_no_cls = ViTDetPool(
+    # test with module included
+
+    class MockMasker(Module):
+        def forward(self, img):
+            batch, _, height, width = img.shape
+            return torch.ones(batch, height, width).bool()
+
+    vit = ViTDetPool(
         image_size = 256,
         patch_size = 32,
         num_classes = 1000,
         dim = 1024,
-        depth = 6,
+        depth = 1,
         heads = 16,
         mlp_dim = 2048,
-        use_cls_token = False,
-        dropout = 0.1,
-        emb_dropout = 0.1
+        mask_generator = MockMasker()
     )
 
-    preds_no_cls = v_no_cls(img, object_mask = object_mask)
-    assert preds_no_cls.shape == (1, 1000)
+    preds = vit(img)
+    assert preds.shape == (1, 1000)

@@ -2287,13 +2287,23 @@ Coming from computer vision and new to transformers? Here are some resources tha
 
 ```bibtex
 @misc{oh2026revisitingresidualconnectionsorthogonal,
-    title   = {Revisiting Residual Connections: Orthogonal Updates for Stable and Efficient Deep Networks}, 
+    title   = {Revisiting Residual Connections: Orthogonal Updates for Stable and Efficient Deep Networks},
     author  = {Giyeong Oh and Woohyun Cho and Siyeol Kim and Suhwan Choi and Youngjae Yu},
     year    = {2026},
     eprint  = {2505.11881},
     archivePrefix = {arXiv},
     primaryClass = {cs.CV},
-    url     = {https://arxiv.org/abs/2505.11881}, 
+    url     = {https://arxiv.org/abs/2505.11881},
+}
+```
+
+```bibtex
+@inproceedings{niu2026learning,
+    title   = {Learning to Grasp Anything By Playing with Random Toys},
+    author  = {Dantong Niu and Yuvan Sharma and Baifeng Shi and Rachel Ding and Matteo Gioia and Haoru Xue and Henry Tsai and Konstantinos Kallidromitis and Anirudh Pai and S. Shankar Sastry and Trevor Darrell and Jitendra Malik and Roei Herzig},
+    booktitle = {The Fourteenth International Conference on Learning Representations},
+    year    = {2026},
+    url     = {https://openreview.net/forum?id=NZDaMcpXZm}
 }
 ```
 

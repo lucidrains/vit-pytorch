@@ -2307,4 +2307,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{marouani2026revisitingclspatchtoken,
+    title   = {Revisiting [CLS] and Patch Token Interaction in Vision Transformers},
+    author  = {Alexis Marouani and Oriane Siméoni and Hervé Jégou and Piotr Bojanowski and Huy V. Vo},
+    year    = {2026},
+    eprint  = {2602.08626},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2602.08626},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

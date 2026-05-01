@@ -147,8 +147,11 @@ class ViTDetPool(Module):
         self.mask_generator = mask_generator
 
     def forward(self, img, object_mask = None):
+
         if not exists(object_mask) and exists(self.mask_generator):
-            object_mask = self.mask_generator(img)
+            with torch.no_grad():
+                self.mask_generator.eval()
+                object_mask = self.mask_generator(img)
 
         has_cls = self.use_cls_token
 

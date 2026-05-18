@@ -2319,4 +2319,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{kim2026exploring,
+    title   = {Exploring High-Order Self-Similarity for Video Understanding},
+    author  = {Manjin Kim and Heeseung Kwon and Karteek Alahari and Minsu Cho},
+    year    = {2026},
+    url     = {https://openreview.net/forum?id=Co6SCyBIjo}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

@@ -15,6 +15,9 @@ from einops.layers.torch import Rearrange
 def exists(val):
     return val is not None
 
+def default(val, d):
+    return val if exists(val) else d
+
 
 def divisible_by(num, den):
     return (num % den) == 0
@@ -58,10 +61,11 @@ class FeedForward(Module):
         return self.net(x)
 
 class Attention(Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_flash_attn = True):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_flash_attn = True, causal = False):
         super().__init__()
         self.use_flash_attn = use_flash_attn
         self.dropout_p = dropout
+        self.causal = causal
         inner_dim = dim_head * heads
         project_out = not (heads == 1 and dim_head == dim)
 
@@ -80,20 +84,30 @@ class Attention(Module):
         ) if project_out else nn.Identity()
 
     def flash_attn(self, q, k, v, mask = None):
+        is_causal = self.causal and q.shape[-2] > 1
+
         with sdpa_kernel([SDPBackend.MATH, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.FLASH_ATTENTION, SDPBackend.CUDNN_ATTENTION]):
             out = F.scaled_dot_product_attention(
                 q, k, v,
                 attn_mask = mask,
                 dropout_p = self.dropout_p,
-                is_causal = False,
+                is_causal = is_causal,
                 scale = self.scale
             )
         return out
 
-    def forward(self, x, mask = None):
+    def forward(self, x, mask = None, cache = None, return_cache = False):
+        is_causal = self.causal and x.shape[-2] > 1
+        assert not (is_causal and exists(mask)), 'causal attention is not compatible with key padding mask'
+
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+
+        if exists(cache):
+            ck, cv = cache
+            k = torch.cat((ck, k), dim = -2)
+            v = torch.cat((cv, v), dim = -2)
 
         if exists(mask):
             mask = rearrange(mask, 'b j -> b 1 1 j')
@@ -105,29 +119,52 @@ class Attention(Module):
             if exists(mask):
                 dots = dots.masked_fill(~mask, -torch.finfo(dots.dtype).max)
 
+            if self.causal:
+                i, j = dots.shape[-2:]
+                causal_mask = torch.ones((i, j), device = x.device, dtype = torch.bool).triu(j - i + 1)
+                dots = dots.masked_fill(causal_mask, -torch.finfo(dots.dtype).max)
+
             attn = self.attend(dots)
             attn = self.dropout(attn)
             out = torch.matmul(attn, v)
 
         out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.to_out(out)
+        out = self.to_out(out)
+
+        if not return_cache:
+            return out
+
+        return out, (k, v)
 
 class Transformer(Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., use_flash_attn = True):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., use_flash_attn = True, causal = False):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = ModuleList([])
+
         for _ in range(depth):
             self.layers.append(ModuleList([
-                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_flash_attn = use_flash_attn),
+                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_flash_attn = use_flash_attn, causal = causal),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x, mask = None):
-        for attn, ff in self.layers:
-            x = attn(x, mask = mask) + x
+    def forward(self, x, mask = None, cache = None, return_cache = False):
+        new_caches = []
+        cache = default(cache, (None,) * len(self.layers))
+
+        for (attn, ff), layer_cache in zip(self.layers, cache):
+            attn_out, next_cache = attn(x, mask = mask, cache = layer_cache, return_cache = True)
+            new_caches.append(next_cache)
+
+            x = attn_out + x
             x = ff(x) + x
-        return self.norm(x)
+
+        x = self.norm(x)
+
+        if not return_cache:
+            return x
+
+        return x, tuple(new_caches)
 
 # moss specific classes
 
@@ -183,8 +220,11 @@ class MOSS(Module):
         self.to_order_out = ModuleList([nn.Linear(dim, dim) for _ in range(orders)])
         self.to_out = nn.Linear(dim, dim)
 
-    def stss_transform(self, x):
+    def stss_transform(self, x, cache = None, return_cache = False):
+        assert not (exists(cache) and not self.causal), 'cache cannot be passed in if MOSS is not causal'
+
         lt, lh, lw = self.local_time, self.local_height, self.local_width
+        _, _, h, w, _ = x.shape
 
         x = l2norm(x)
         x = rearrange(x, 'b t h w c -> b c t h w')
@@ -192,20 +232,46 @@ class MOSS(Module):
         pad_h, pad_w = lh // 2, lw // 2
         pad_t_past, pad_t_future = (lt - 1, 0) if self.causal else (lt // 2, lt // 2)
 
-        padded_x = F.pad(x, (pad_w, pad_w, pad_h, pad_h, pad_t_past, pad_t_future))
+        has_cache = self.causal and exists(cache)
+        x_temporal = torch.cat((cache, x), dim = 2) if has_cache else x
+
+        padding = (pad_w, pad_w, pad_h, pad_h, 0 if has_cache else pad_t_past, pad_t_future)
+        padded_x = F.pad(x_temporal, padding)
+
         windows = padded_x.unfold(2, lt, 1).unfold(3, lh, 1).unfold(4, lw, 1)
 
-        return einsum(x, windows, 'b c t h w, b c t h w l u v -> b t h w l u v')
+        sim = einsum(x, windows, 'b c t h w, b c t h w l u v -> b t h w l u v')
 
-    def forward(self, x):
+        if not return_cache:
+            return sim
+
+        new_cache = padded_x[..., -(lt - 1):, pad_h:(pad_h + h), pad_w:(pad_w + w)] if self.causal else None
+        return sim, new_cache
+
+    def forward(
+        self,
+        x,
+        cache = None,
+        return_cache = False
+    ):
+        assert not (exists(cache) and not self.causal), 'cache cannot be passed in if MOSS is not causal'
+
         out = self.to_out(x)
 
-        for encoder, to_order_out in zip(self.encoders, self.to_order_out):
-            sim = self.stss_transform(x)
+        new_caches = []
+        cache = default(cache, (None,) * len(self.encoders))
+
+        for encoder, to_order_out, layer_cache in zip(self.encoders, self.to_order_out, cache):
+            sim, next_cache = self.stss_transform(x, cache = layer_cache, return_cache = True)
+            new_caches.append(next_cache)
+
             x = encoder(sim)
             out = out + to_order_out(x)
 
-        return out
+        if not return_cache:
+            return out
+
+        return out, tuple(new_caches)
 
 # main architecture
 
@@ -267,8 +333,8 @@ class ViViT(Module):
         self.spatial_cls_token = nn.Parameter(torch.randn(1, 1, dim)) if self.has_cls else None
         self.temporal_cls_token = nn.Parameter(torch.randn(1, 1, dim)) if self.has_cls else None
 
-        self.spatial_transformer = Transformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn)
-        self.temporal_transformer = Transformer(dim, temporal_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn)
+        self.spatial_transformer = Transformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn, causal = False)
+        self.temporal_transformer = Transformer(dim, temporal_depth, heads, dim_head, mlp_dim, dropout, use_flash_attn, causal = moss_causal)
 
         self.moss = MOSS(
             dim,
@@ -286,6 +352,8 @@ class ViViT(Module):
         )
 
     def forward(self, video, mask = None):
+        assert not (exists(mask) and self.moss.causal), 'mask cannot be passed if MOSS is causal'
+
         x = self.to_patch_embedding(video)
         batch, frames, seq, _ = x.shape
 
@@ -306,6 +374,7 @@ class ViViT(Module):
         x = rearrange(x, 'b f n d -> (b f) n d')
 
         # attend across space
+
         x = self.spatial_transformer(x)
         x = rearrange(x, '(b f) n d -> b f n d', b = batch)
 
@@ -349,6 +418,7 @@ class ViViT(Module):
         return self.mlp_head(x)
 
 if __name__ == '__main__':
+
     vivit = ViViT(
         dim = 512,
         spatial_depth = 2,
@@ -360,15 +430,11 @@ if __name__ == '__main__':
         frames = 8,
         frame_patch_size = 2,
         num_classes = 1000,
+        moss_causal = True
     )
 
     video = torch.randn(2, 3, 8, 256, 256)
-    mask = torch.randint(0, 2, (2, 8)).bool()
-
     logits = vivit(video, mask = None)
-    assert logits.shape == (2, 1000)
-
-    logits = vivit(video, mask = mask)
     assert logits.shape == (2, 1000)
 
     moss = MOSS(

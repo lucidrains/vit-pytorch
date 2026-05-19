@@ -107,7 +107,7 @@ class ViT(nn.Module):
     def __init__(self, *, num_classes, image_size, patch_size, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
+        self.patch_size = patch_height, patch_width = pair(patch_size)
 
         assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
 

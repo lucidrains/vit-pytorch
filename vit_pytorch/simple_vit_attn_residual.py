@@ -1,3 +1,5 @@
+# @bycloud explanation https://www.youtube.com/watch?v=iw1VF8HOCrk
+
 from __future__ import annotations
 
 import torch
@@ -168,7 +170,7 @@ class SimpleViTAttnResidual(Module):
     ):
         super().__init__()
         image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
+        self.patch_size = patch_height, patch_width = pair(patch_size)
 
         assert divisible_by(image_height, patch_height) and divisible_by(image_width, patch_width), 'Image dimensions must be divisible by the patch size.'
 

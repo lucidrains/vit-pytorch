@@ -107,7 +107,7 @@ class SimpleUViT(Module):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_register_tokens = 4, channels = 3, dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
+        self.patch_size = patch_height, patch_width = pair(patch_size)
 
         assert divisible_by(image_height, patch_height) and divisible_by(image_width, patch_width), 'Image dimensions must be divisible by the patch size.'
 

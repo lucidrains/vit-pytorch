@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 from contextlib import nullcontext
 
 import torch
 from torch import is_tensor, randn
 from torch.nn import Module, Linear, Parameter
 from torch.utils._pytree import tree_flatten, tree_unflatten
+
+from vit_pytorch.vivit_with_moss import MOSS
 
 from einops import rearrange, repeat
 
@@ -14,6 +18,9 @@ def exists(v):
 
 def default(v, d):
     return v if exists(v) else d
+
+def pair(t):
+    return t if isinstance(t, tuple) else (t, t)
 
 # classes
 
@@ -27,7 +34,9 @@ class AcceptVideoWrapper(Module):
         time_seq_len = None,
         embed_is_channel_first = False,
         output_pos_add_pos_emb = 0, # defaults to first output position to add embedding
-        proj_embed_to_dim = None
+        proj_embed_to_dim = None,
+        patch_size = None,
+        moss: Module | dict | None = None
     ):
         super().__init__()
         self.image_net = image_net
@@ -56,6 +65,24 @@ class AcceptVideoWrapper(Module):
 
         self.embed_is_channel_first = embed_is_channel_first
 
+        # patch size and moss
+
+        if not exists(patch_size):
+            if hasattr(image_net, 'patch_size'):
+                patch_size = image_net.patch_size
+            elif hasattr(image_net, 'vit') and hasattr(image_net.vit, 'patch_size'):
+                patch_size = image_net.vit.patch_size
+
+        self.patch_size = patch_size
+
+        if isinstance(moss, dict):
+            moss = MOSS(**moss)
+
+        self.moss = moss
+
+        if exists(self.moss):
+            assert exists(self.patch_size), '`patch_size` must be provided either on the `image_net` or passed in explicitly if using MOSS'
+
     def forward(
         self,
         video, # (b c t h w)
@@ -69,6 +96,8 @@ class AcceptVideoWrapper(Module):
 
         if add_time_pos_emb:
             assert time <= self.time_seq_len, f'received video with {time} frames but `time_seq_len` ({self.time_seq_len}) is too low'
+
+        video_height, video_width = video.shape[-2:]
 
         video = rearrange(video, 'b c t h w -> b t c h w')
 
@@ -127,6 +156,27 @@ class AcceptVideoWrapper(Module):
 
             outputs[self.output_pos_add_pos_emb] = embed
 
+        # moss - stack of ssts
+        # https://openreview.net/forum?id=Co6SCyBIjo
+
+        if exists(self.moss):
+            outputs = list(outputs)
+            embed = outputs[self.output_pos_add_pos_emb]
+
+            patch_h, patch_w = pair(self.patch_size)
+            num_h, num_w = video_height // patch_h, video_width // patch_w
+            num_patches = num_h * num_w
+
+            num_cls_tokens = embed.shape[-2] - num_patches
+            cls_tokens, patch_tokens = embed[:, :, :num_cls_tokens], embed[:, :, num_cls_tokens:]
+
+            patch_tokens = rearrange(patch_tokens, 'b t (h w) d -> b t h w d', h = num_h, w = num_w)
+            patch_tokens = self.moss(patch_tokens)
+            patch_tokens = rearrange(patch_tokens, 'b t h w d -> b t (h w) d')
+
+            embed = torch.cat((cls_tokens, patch_tokens), dim = -2)
+            outputs[self.output_pos_add_pos_emb] = embed
+
         return tree_unflatten(outputs, tree_spec)
 
 # main
@@ -151,9 +201,28 @@ if __name__ == '__main__':
     # step up the difficulty and return embeddings for robotics
 
     from vit_pytorch.extractor import Extractor
+
     v = Extractor(v)
 
-    video_acceptor = AcceptVideoWrapper(v, add_time_pos_emb = True, output_pos_add_pos_emb = 1, time_seq_len = 12, dim_emb = 1024, proj_embed_to_dim = 512)
+    moss_kwargs = dict(
+        dim = 512,
+        local_time = 3,
+        local_height = 3,
+        local_width = 3,
+        hidden_dim = 64,
+        orders = 2,
+        causal = True
+    )
+
+    video_acceptor = AcceptVideoWrapper(
+        v,
+        add_time_pos_emb = True,
+        output_pos_add_pos_emb = 1,
+        time_seq_len = 12,
+        dim_emb = 1024,
+        proj_embed_to_dim = 512,
+        moss = moss_kwargs
+    )
 
     logits, embeddings = video_acceptor(videos, eval_with_no_grad = True) # always (batch, channels, time, height, width) - time is always dimension 2
 

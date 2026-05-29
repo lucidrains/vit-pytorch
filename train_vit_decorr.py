@@ -59,7 +59,8 @@ vit = ViT(
     decorr_sample_frac = 1.,        # use all tokens
     decorr_use_subspace = False,    # use subspace
     decorr_dim_subspace = 64,
-    decorr_num_subspaces = 4
+    decorr_num_subspaces = 4,
+    decorr_layer_outputs_across_depth = False
 )
 
 # optim

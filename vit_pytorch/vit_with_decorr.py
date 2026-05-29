@@ -34,11 +34,12 @@ class DecorrelationLoss(Module):
         dim = None,
         dim_subspace = 64,
         num_subspaces = 1,
-        mean_center = False # covariance if true
+        mean_center = False, # covariance if true
+        across_depth = False
     ):
         super().__init__()
         assert 0. <= sample_frac <= 1.
-        self.need_sample = sample_frac < 1.
+        self.need_sample = sample_frac < 1. and not across_depth
         self.sample_frac = sample_frac
 
         self.soft_validate_num_sampled = soft_validate_num_sampled
@@ -117,7 +118,7 @@ class FeedForward(Module):
 
     def forward(self, x):
         normed = self.norm(x)
-        return self.net(x), normed
+        return self.net(normed), normed
 
 class Attention(Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
@@ -170,21 +171,45 @@ class Transformer(Module):
     def forward(self, x):
 
         normed_inputs = []
+        layer_outputs = []
 
         for attn, ff in self.layers:
             attn_out, attn_normed_inp = attn(x)
+            layer_outputs.append(attn_out)
             x = attn_out + x
 
             ff_out, ff_normed_inp = ff(x)
+            layer_outputs.append(ff_out)
             x = ff_out + x
 
             normed_inputs.append(attn_normed_inp)
             normed_inputs.append(ff_normed_inp)
 
-        return self.norm(x), stack(normed_inputs)
+        return self.norm(x), stack(normed_inputs), stack(layer_outputs)
 
 class ViT(Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., decorr_sample_frac = 1., decorr_use_subspace = False, decorr_dim_subspace = 64, decorr_num_subspaces = 1, decorr_mean_center = False):
+    def __init__(
+        self,
+        *,
+        image_size,
+        patch_size,
+        num_classes,
+        dim,
+        depth,
+        heads,
+        mlp_dim,
+        pool = 'cls',
+        channels = 3,
+        dim_head = 64,
+        dropout = 0.,
+        emb_dropout = 0.,
+        decorr_sample_frac = 1.,
+        decorr_use_subspace = False,
+        decorr_dim_subspace = 64,
+        decorr_num_subspaces = 1,
+        decorr_mean_center = False,
+        decorr_layer_outputs_across_depth = False
+    ):
         super().__init__()
         image_height, image_width = pair(image_size)
         self.patch_size = patch_height, patch_width = pair(patch_size)
@@ -215,10 +240,12 @@ class ViT(Module):
 
         # decorrelation loss related
 
+        self.decorr_layer_outputs_across_depth = decorr_layer_outputs_across_depth
+
         self.has_decorr_loss = decorr_sample_frac > 0.
 
         if self.has_decorr_loss:
-            self.decorr_loss = DecorrelationLoss(decorr_sample_frac, use_subspace = decorr_use_subspace, dim = dim, dim_subspace = decorr_dim_subspace, num_subspaces = decorr_num_subspaces, mean_center = decorr_mean_center)
+            self.decorr_loss = DecorrelationLoss(decorr_sample_frac, use_subspace = decorr_use_subspace, dim = dim, dim_subspace = decorr_dim_subspace, num_subspaces = decorr_num_subspaces, mean_center = decorr_mean_center, across_depth = self.decorr_layer_outputs_across_depth)
 
         self.register_buffer('zero', torch.tensor(0.), persistent = False)
 
@@ -237,14 +264,19 @@ class ViT(Module):
         x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
 
-        x, normed_layer_inputs = self.transformer(x)
+        x, normed_layer_inputs, layer_outputs = self.transformer(x)
 
         # maybe return decor loss
 
         decorr_aux_loss = self.zero
 
         if return_decorr_aux_loss:
-            decorr_aux_loss = self.decorr_loss(normed_layer_inputs)
+            decorr_inputs = normed_layer_inputs
+
+            if self.decorr_layer_outputs_across_depth:
+                decorr_inputs = rearrange(layer_outputs, 'l b n d -> n b l d')
+
+            decorr_aux_loss = self.decorr_loss(decorr_inputs)
 
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 

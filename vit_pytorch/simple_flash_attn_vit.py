@@ -3,7 +3,7 @@ from packaging import version
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import nn, einsum
 
 from einops import rearrange
 from einops.layers.torch import Rearrange
@@ -174,3 +174,19 @@ class SimpleViT(nn.Module):
 
         x = self.to_latent(x)
         return self.linear_head(x)
+
+if __name__ == "__main__":
+    vit = SimpleViT(
+        image_size = 256,
+        patch_size = 32,
+        num_classes = 1000,
+        dim = 1024,
+        depth = 7,
+        heads = 16,
+        mlp_dim = 2048
+    )
+
+    images = torch.randn(2, 3, 256, 256)
+
+    predictions = vit(images)
+    assert predictions.shape == (2, 1000)

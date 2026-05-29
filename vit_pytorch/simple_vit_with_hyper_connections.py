@@ -4,10 +4,10 @@ https://arxiv.org/abs/2409.19606
 """
 
 import torch
-from torch import nn, tensor
+from torch import nn, tensor, einsum
 from torch.nn import Module, ModuleList
 
-from einops import rearrange, repeat, reduce, einsum, pack, unpack
+from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
 
 # b - batch, h - heads, n - sequence, e - expansion rate / residual streams, d - feature dimension

@@ -2,7 +2,7 @@ import random
 from functools import wraps
 
 import torch
-from torch import nn
+from torch import nn, einsum
 from torch.nn import Module
 import torch.nn.functional as F
 
@@ -64,7 +64,7 @@ def sigreg_loss(
 
     # empirical CF
 
-    x_t = torch.einsum('... d, m d -> ... m', x, rand_projs)
+    x_t = einsum('... d, m d -> ... m', x, rand_projs)
     x_t = rearrange(x_t, '... m -> (...) m')
 
     x_t = rearrange(x_t, 'n m -> n m 1') * t

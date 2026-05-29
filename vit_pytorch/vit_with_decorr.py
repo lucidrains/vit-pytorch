@@ -2,11 +2,11 @@
 # but instead of their decorr module updated with SGD, remove all projections and just return a decorrelation auxiliary loss
 
 import torch
-from torch import nn, stack, tensor
+from torch import nn, stack, tensor, einsum
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList
 
-from einops import rearrange, repeat, reduce, einsum, pack, unpack
+from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
 
 # helpers

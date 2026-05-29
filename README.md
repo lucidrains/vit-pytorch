@@ -2328,4 +2328,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{akbar2026weaksigregcovarianceregularizationstable,
+    title   = {Weak-SIGReg: Covariance Regularization for Stable Deep Learning},
+    author  = {Habibullah Akbar},
+    year    = {2026},
+    eprint  = {2603.05924},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.LG},
+    url     = {https://arxiv.org/abs/2603.05924},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

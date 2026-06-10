@@ -1575,6 +1575,33 @@ logits, embeddings = v(img)
 embeddings # ((1, 257, 192), (1, 17, 384)) - (batch x patches x dimension) <- large and small scales respectively
 ```
 
+## JetViT
+
+<img src="./images/jet_vit.png" width="400px"></img>
+
+*Efficient high-resolution ViT using a hybrid of ReLU-based linear attention with squeeze dynamic convolution for local context, and full softmax attention at selected layers.*
+
+```python
+import torch
+from vit_pytorch.jet_vit import ViT
+
+model = ViT(
+    image_size = 512,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 512,
+    depth = 6,
+    heads = 8,
+    mlp_dim = 1024,
+    dropout = 0.1,
+    emb_dropout = 0.1,
+    full_attn_layers = [2, 5]  # layer indices that use full softmax attention
+)
+
+img = torch.randn(1, 3, 512, 512)
+out = model(img)  # (1, 1000)
+```
+
 ## Research Ideas
 
 ### Efficient Attention

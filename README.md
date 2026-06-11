@@ -2369,4 +2369,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{zou2026jetvitefficienthighresolutionvision,
+    title   = {JetViT: Efficient High-Resolution Vision Transformer with Post-Training Attention Search},
+    author  = {Dongyun Zou and Zhuoyang Zhang and Junyu Chen and Wenkun He and Qinhe Peng and Hanrong Ye and Yao Lu and Hongxu Yin and Yu Wang and Song Han and Han Cai},
+    year    = {2026},
+    eprint  = {2605.26636},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2605.26636},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

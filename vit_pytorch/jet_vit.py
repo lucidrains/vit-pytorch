@@ -56,20 +56,20 @@ class SqueezeDynamicConv(Module):
 
     def forward(self, v):
         b, heads, _, _ = v.shape
-        
+
         # Squeeze global context
         v_mean = reduce(v, 'b h n d -> b (h d)', 'mean')
 
-        weight = self.mlp(v_mean) 
+        weight = self.mlp(v_mean)
 
         weight = rearrange(weight, 'b (c k1 k2) -> (b c) 1 k1 k2', c = self.dim, k1 = self.kernel_size, k2 = self.kernel_size)
 
         v_spatial = rearrange(v, 'b h (h_s w_s) d -> 1 (b h d) h_s w_s', h_s = self.h_s, w_s = self.w_s)
 
         out = F.conv2d(v_spatial, weight, padding = self.padding, groups = b * self.dim)
-        
+
         return rearrange(out, '1 (b h d) h_s w_s -> b h (h_s w_s) d', b = b, h = heads, h_s = self.h_s, w_s = self.w_s)
-    
+
 class WindowAttention(nn.Module):
     def __init__(
         self,
@@ -145,7 +145,7 @@ class WindowAttention(nn.Module):
         out = rearrange(out, 'b x y w1 w2 d -> b (x w1) (y w2) d')
 
         return rearrange(out, 'b h w d -> b (h w) d')
-   
+
 
 class JetViTLinearAttention(Module):
     def __init__(self, dim, h_s, w_s, heads = 8, dim_head = 64, dropout = 0., kernel_size = 3):
@@ -159,7 +159,7 @@ class JetViTLinearAttention(Module):
 
         self.norm = nn.LayerNorm(dim)
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
-        
+
         self.dynamic_conv = SqueezeDynamicConv(inner_dim, h_s, w_s, kernel_size = kernel_size)
 
         self.to_out = nn.Sequential(
@@ -180,7 +180,7 @@ class JetViTLinearAttention(Module):
         conv_out = rearrange(conv_out, 'b h n d -> b n (h d)')
 
         return self.to_out(linear_out + conv_out)
-    
+
 
 class Attention(Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
@@ -217,7 +217,7 @@ class Attention(Module):
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
-    
+
 
 class Transformer(Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout = 0., full_attn_layers = (), window_attn_layers = (), window_size = 7):

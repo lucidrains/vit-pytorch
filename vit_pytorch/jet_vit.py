@@ -4,7 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList
 
-from einops import rearrange, reduce, repeat, einsum
+from einops import rearrange, reduce, einsum
 from einops.layers.torch import Rearrange
 
 # helpers
@@ -70,6 +70,82 @@ class SqueezeDynamicConv(Module):
         
         return rearrange(out, '1 (b h d) h_s w_s -> b h (h_s w_s) d', b = b, h = heads, h_s = self.h_s, w_s = self.w_s)
     
+class WindowAttention(nn.Module):
+    def __init__(
+        self,
+        dim,
+        h_s,
+        w_s,
+        dim_head = 64,
+        dropout = 0.,
+        window_size = 7
+    ):
+        super().__init__()
+        assert (dim % dim_head) == 0, 'dimension should be divisible by dimension per head'
+
+        self.h_s = h_s
+        self.w_s = w_s
+        self.window_size = window_size
+
+        self.heads = dim // dim_head
+        self.scale = dim_head ** -0.5
+
+        self.norm = nn.LayerNorm(dim)
+        self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
+
+        self.attend = nn.Sequential(
+            nn.Softmax(dim = -1),
+            nn.Dropout(dropout)
+        )
+
+        self.to_out = nn.Sequential(
+            nn.Linear(dim, dim, bias = False),
+            nn.Dropout(dropout)
+        )
+
+        self.rel_pos_bias = nn.Embedding((2 * window_size - 1) ** 2, self.heads)
+
+        pos = torch.arange(window_size)
+        grid = torch.stack(torch.meshgrid(pos, pos, indexing = 'ij'))
+        grid = rearrange(grid, 'c i j -> (i j) c')
+        rel_pos = rearrange(grid, 'i ... -> i 1 ...') - rearrange(grid, 'j ... -> 1 j ...')
+        rel_pos += window_size - 1
+        rel_pos_indices = (rel_pos * torch.tensor([2 * window_size - 1, 1])).sum(dim = -1)
+
+        self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
+
+    def forward(self, x):
+
+        x = self.norm(x)
+
+        x = rearrange(x, 'b (h w) d -> b h w d', h=self.h_s, w=self.w_s)
+        x = rearrange(x, 'b (x w1) (y w2) d -> b x y w1 w2 d',
+                      w1=self.window_size, w2=self.window_size)
+
+        batch, height, width, window_height, window_width, _, device, h = *x.shape, x.device, self.heads
+
+        x = rearrange(x, 'b x y w1 w2 d -> (b x y) (w1 w2) d')
+
+        q, k, v = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v))
+
+        q = q * self.scale
+        sim = einsum(q, k, 'b h i d, b h j d -> b h i j')
+        sim = sim + rearrange(self.rel_pos_bias(self.rel_pos_indices), 'i j h -> h i j')
+        attn = self.attend(sim)
+
+        out = einsum(attn, v, 'b h i j, b h j d -> b h i d')
+
+        out = rearrange(out, 'b h (w1 w2) d -> b w1 w2 (h d)', w1=window_height, w2=window_width)
+
+        out = self.to_out(out)
+
+        out = rearrange(out, '(b x y) ... -> b x y ...', x=height, y=width)
+
+        out = rearrange(out, 'b x y w1 w2 d -> b (x w1) (y w2) d')
+
+        return rearrange(out, 'b h w d -> b (h w) d')
+   
 
 class JetViTLinearAttention(Module):
     def __init__(self, dim, h_s, w_s, heads = 8, dim_head = 64, dropout = 0., kernel_size = 3):
@@ -93,9 +169,6 @@ class JetViTLinearAttention(Module):
 
     def forward(self, x):
         x = self.norm(x)
-        
-        seq_len = x.shape[1]
-        has_cls = (self.h_s * self.w_s + 1 == seq_len)
 
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
@@ -103,14 +176,8 @@ class JetViTLinearAttention(Module):
         linear_out = linear_attn(q, k, v)
         linear_out = rearrange(linear_out, 'b h n d -> b n (h d)')
 
-        v_img = v[:, :, 1:, :] if has_cls else v
-            
-        conv_out = self.dynamic_conv(v_img)
+        conv_out = self.dynamic_conv(v)
         conv_out = rearrange(conv_out, 'b h n d -> b n (h d)')
-
-        if has_cls:
-            cls_zeros = torch.zeros((x.shape[0], 1, conv_out.shape[-1]), device=x.device, dtype=x.dtype)
-            conv_out = torch.cat((cls_zeros, conv_out), dim = 1)
 
         return self.to_out(linear_out + conv_out)
     
@@ -153,7 +220,7 @@ class Attention(Module):
     
 
 class Transformer(Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout = 0., full_attn_layers = ()):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout = 0., full_attn_layers = (), window_attn_layers = (), window_size = 7):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = ModuleList([])
@@ -161,6 +228,8 @@ class Transformer(Module):
         for i in range(depth):
             if i in full_attn_layers:
                 attn = Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)
+            elif i in window_attn_layers:
+                attn = WindowAttention(dim, h_s, w_s, dim_head = dim_head, dropout = dropout, window_size = window_size)
             else:
                 attn = JetViTLinearAttention(dim, h_s, w_s, heads = heads, dim_head = dim_head, dropout = dropout)
 
@@ -177,8 +246,8 @@ class Transformer(Module):
         return self.norm(x)
 
 
-class ViT(Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., full_attn_layers = ()):
+class JetViT(Module):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., full_attn_layers = (), window_attn_layers = (), window_size = 7):
         super().__init__()
         image_height, image_width = pair(image_size)
         self.patch_size = patch_height, patch_width = pair(patch_size)
@@ -191,9 +260,6 @@ class ViT(Module):
         num_patches = h_s * w_s
         patch_dim = channels * patch_height * patch_width
 
-        assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
-        num_cls_tokens = 1 if pool == 'cls' else 0
-
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
             nn.LayerNorm(patch_dim),
@@ -201,29 +267,17 @@ class ViT(Module):
             nn.LayerNorm(dim),
         )
 
-        self.cls_token = nn.Parameter(torch.randn(num_cls_tokens, dim))
-        self.pos_embedding = nn.Parameter(torch.randn(num_patches + num_cls_tokens, dim))
-
+        self.pos_embedding = nn.Parameter(torch.randn(num_patches, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout, full_attn_layers)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout, full_attn_layers, window_attn_layers, window_size)
 
-        self.pool = pool
         self.to_latent = nn.Identity()
-
         self.mlp_head = nn.Linear(dim, num_classes) if num_classes > 0 else None
 
     def forward(self, img):
-        batch = img.shape[0]
-        
         x = self.to_patch_embedding(img)
-
-        cls_tokens = repeat(self.cls_token, '... d -> b ... d', b = batch)
-        x = torch.cat((cls_tokens, x), dim = 1)
-
-        seq = x.shape[1]
-
-        x = x + self.pos_embedding[:seq]
+        x = x + self.pos_embedding
         x = self.dropout(x)
 
         x = self.transformer(x)
@@ -231,7 +285,5 @@ class ViT(Module):
         if self.mlp_head is None:
             return x
 
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
-
-        x = self.to_latent(x)
+        x = self.to_latent(x.mean(dim = 1))
         return self.mlp_head(x)

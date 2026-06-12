@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import partial
 from collections import namedtuple
 
@@ -43,6 +45,36 @@ def pack_with_inverse(t, pattern):
 
 # classes
 
+class AutoencodingHead(Module):
+    def __init__(
+        self,
+        *,
+        image_size,
+        patch_size,
+        decoder: Module | None = None,
+        channel_first = False
+    ):
+        super().__init__()
+        image_height, image_width = pair(image_size)
+        patch_height, patch_width = pair(patch_size)
+
+        self.grid_h = image_height // patch_height
+        self.grid_w = image_width // patch_width
+
+        self.channel_first = channel_first
+        self.decoder = default(decoder, nn.Identity())
+
+    def forward(self, slots, mask):
+        mask = reduce(mask, 'b ... t s -> b t s', 'mean')
+        mask_softmax = mask.softmax(dim = -1)
+
+        dense_features = einsum(mask_softmax, slots, 'b t s, b s d -> b t d')
+
+        pattern = 'b (h w) d -> b d h w' if self.channel_first else 'b (h w) d -> b h w d'
+        dense_features_spatial = rearrange(dense_features, pattern, h = self.grid_h, w = self.grid_w)
+
+        return self.decoder(dense_features_spatial)
+
 def FeedForward(dim, hidden_dim, dropout = 0., out_dim = None):
     out_dim = default(out_dim, dim)
     return nn.Sequential(
@@ -64,7 +96,8 @@ class WWTBlock(Module):
         mlp_dim,
         dropout = 0.,
         l1norm_after_tokens_softmax = False,
-        token_softmax_over_slots = False
+        token_softmax_over_slots = False,
+        project_mask_groups = False
     ):
         super().__init__()
         self.heads = heads
@@ -72,6 +105,9 @@ class WWTBlock(Module):
         self.token_softmax_over_slots = token_softmax_over_slots
 
         self.q_groups = 2 if token_softmax_over_slots else 1
+
+        self.project_mask_groups = project_mask_groups and token_softmax_over_slots
+        self.mask_groups = 1 if self.project_mask_groups else self.q_groups
 
         inner_dim = heads * dim_head
 
@@ -95,7 +131,10 @@ class WWTBlock(Module):
         self.mlp_tokens = FeedForward(dim, mlp_dim, dropout = dropout)
         self.mlp_slots = FeedForward(dim, mlp_dim, dropout = dropout)
 
-        self.mlp_mask = FeedForward(self.q_groups * heads * num_slots + dim, mlp_dim, dropout = dropout, out_dim = self.q_groups * heads * num_slots)
+        if self.project_mask_groups:
+            self.mask_project = nn.Conv2d(self.q_groups * heads, heads, 1)
+
+        self.mlp_mask = FeedForward(self.mask_groups * heads * num_slots + dim, mlp_dim, dropout = dropout, out_dim = self.mask_groups * heads * num_slots)
 
     def forward(self, tokens, slots, mask):
         h, g = self.heads, self.q_groups
@@ -154,10 +193,15 @@ class WWTBlock(Module):
 
         # mask update
 
+        if self.project_mask_groups:
+            mask_prime = rearrange(mask_prime, 'b g h t s -> b (g h) t s')
+            mask_prime = self.mask_project(mask_prime)
+            mask_prime = rearrange(mask_prime, 'b h t s -> b 1 h t s')
+
         mask_prime_reshaped = rearrange(mask_prime, 'b g h t s -> b t (g h s)')
         concat_mask_tokens = cat((mask_prime_reshaped, tokens_prime), dim = -1)
         mask_next_reshaped = self.mlp_mask(concat_mask_tokens)
-        mask_next = rearrange(mask_next_reshaped, 'b t (g h s) -> b g h t s', h = h, g = g)
+        mask_next = rearrange(mask_next_reshaped, 'b t (g h s) -> b g h t s', h = h, g = self.mask_groups)
 
         return WWTBlockReturn(tokens_next, slots_next, mask_next)
 
@@ -181,8 +225,10 @@ class WWT(Module):
         return_tokens = False,
         l1norm_after_tokens_softmax = False,
         token_softmax_over_slots = False,
+        project_mask_groups = False,
         num_register_tokens = 0,
         num_register_slots = 0,
+        task_heads: tuple[Module, ...] | list[Module] = (),
     ):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -214,6 +260,9 @@ class WWT(Module):
         self.token_softmax_over_slots = token_softmax_over_slots
         self.q_groups = 2 if token_softmax_over_slots else 1
 
+        self.project_mask_groups = project_mask_groups and token_softmax_over_slots
+        self.mask_groups = 1 if self.project_mask_groups else self.q_groups
+
         total_slots = num_slots + num_register_slots
 
         self.layers = ModuleList([])
@@ -226,13 +275,16 @@ class WWT(Module):
                 mlp_dim,
                 dropout = dropout,
                 l1norm_after_tokens_softmax = l1norm_after_tokens_softmax,
-                token_softmax_over_slots = token_softmax_over_slots
+                token_softmax_over_slots = token_softmax_over_slots,
+                project_mask_groups = project_mask_groups
             ))
 
         self.mlp_head = nn.Sequential(
             LayerNormNoBias(dim),
             nn.Linear(dim, num_classes)
         )
+
+        self.task_heads = ModuleList(task_heads)
 
         self.return_tokens = return_tokens
 
@@ -270,7 +322,7 @@ class WWT(Module):
         t_packed = tokens.shape[-2]
         s_packed = slots.shape[-2]
 
-        mask = tokens.new_zeros(b, self.q_groups, self.heads, t_packed, s_packed)
+        mask = tokens.new_zeros(b, self.mask_groups, self.heads, t_packed, s_packed)
 
         # layers
 
@@ -282,7 +334,7 @@ class WWT(Module):
 
         mask = mask[..., self.num_register_tokens:, self.num_register_slots:]
 
-        if not self.token_softmax_over_slots:
+        if not self.token_softmax_over_slots or self.project_mask_groups:
             mask = rearrange(mask, 'b 1 h t s -> b h t s')
 
         if return_embeddings:
@@ -295,16 +347,36 @@ class WWT(Module):
         pooled_slot_logits = reduce(slot_logits, 'b s c -> b c', 'mean')
 
         if not self.return_tokens:
-            return pooled_slot_logits
+            out = pooled_slot_logits
+        else:
+            token_logits = self.mlp_head_tokens(tokens)
+            pooled_token_logits = reduce(token_logits, 'b t c -> b c', 'mean')
+            out = WWTReturn(pooled_slot_logits, pooled_token_logits)
 
-        token_logits = self.mlp_head_tokens(tokens)
-        pooled_token_logits = reduce(token_logits, 'b t c -> b c', 'mean')
+        if len(self.task_heads) == 0:
+            return out
 
-        return WWTReturn(pooled_slot_logits, pooled_token_logits)
+        task_head_outs = tuple(head(slots, mask) for head in self.task_heads)
+
+        return (out, *task_head_outs)
 
 if __name__ == '__main__':
-    for token_softmax_over_slots in (False, True):
-        print(f"Testing with token_softmax_over_slots = {token_softmax_over_slots}")
+    configs = (
+        # token_softmax_over_slots, project_mask_groups, channel_first
+        (False, False, False),
+        (True, False, False),
+        (True, True, True),
+    )
+
+    for token_softmax_over_slots, project_mask_groups, channel_first in configs:
+        print(f"Testing with token_softmax_over_slots = {token_softmax_over_slots}, project_mask_groups = {project_mask_groups}, channel_first = {channel_first}")
+
+        autoencoding_head = AutoencodingHead(
+            image_size = 256,
+            patch_size = 32,
+            channel_first = channel_first
+        )
+
         model = WWT(
             image_size = 256,
             patch_size = 32,
@@ -317,12 +389,23 @@ if __name__ == '__main__':
             return_tokens = True,
             l1norm_after_tokens_softmax = True,
             token_softmax_over_slots = token_softmax_over_slots,
+            project_mask_groups = project_mask_groups,
             num_register_tokens = 4,
-            num_register_slots = 4
+            num_register_slots = 4,
+            task_heads = [autoencoding_head]
         )
 
         img = torch.randn(1, 3, 256, 256)
-        slot_preds, token_preds = model(img)
+
+        out, dense_feature_map = model(img)
+        slot_preds, token_preds = out
 
         assert slot_preds.shape == (1, 1000)
         assert token_preds.shape == (1, 1000)
+
+        if channel_first:
+            assert dense_feature_map.shape == (1, 256, 8, 8)
+        else:
+            assert dense_feature_map.shape == (1, 8, 8, 256)
+
+        print('success')

@@ -2381,4 +2381,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{yoshihashi2026whatwheretransformer,
+    title   = {What-Where Transformer: A Slot-Centric Visual Backbone for Concurrent Representation and Localization},
+    author  = {Ryota Yoshihashi and Masahiro Kada and Satoshi Ikehata and Rei Kawakami and Ikuro Sato},
+    year    = {2026},
+    eprint  = {2605.12021},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2605.12021},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

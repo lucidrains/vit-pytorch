@@ -1581,6 +1581,8 @@ embeddings # ((1, 257, 192), (1, 17, 384)) - (batch x patches x dimension) <- la
 
 Efficient high-resolution ViT that converts a pretrained full-attention ViT into a hybrid of ReLU-based linear attention with squeeze dynamic convolution, window attention, and a small number of full softmax attention layers via a three-stage Post-Training Attention Search.
 
+Credit goes to [Pranoy](https://github.com/pranoyr) for the implementation!
+
 Stage 1 — Each layer randomly picks between window and linear attention every forward pass.
 
 ```python

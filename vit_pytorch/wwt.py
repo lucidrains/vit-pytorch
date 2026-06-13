@@ -51,37 +51,80 @@ class AutoencodingHead(Module):
         image_size,
         patch_size,
         decoder: Module | None = None,
+        pathways: tuple[tuple[int, ...], ...] | None = None,
+        patch_pathway_id = 0,
         channel_first = False
     ):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
 
-        self.grid_h = image_height // patch_height
-        self.grid_w = image_width // patch_width
+        grid_h = image_height // patch_height
+        grid_w = image_width // patch_width
 
-        self.channel_first = channel_first
+        self.patch_pathway_id = patch_pathway_id
+
+        # customary pathways (e.g. 3 -> 2 -> 0 or 0 -> 2 -> 3)
+        # allows for enforcing consistency loss between different hierarchical traversals
+
+        if exists(pathways):
+            for pathway in pathways:
+                is_descending = pathway[0] > pathway[-1]
+                for source, target in zip(pathway[:-1], pathway[1:]):
+                    assert (target < source) == is_descending, 'pathway must be strictly directional'
+
+        self.pathways = pathways
+
+        pattern = 'b (h w) d -> b d h w' if channel_first else 'b (h w) d -> b h w d'
+        self.to_spatial = Rearrange(pattern, h = grid_h, w = grid_w)
+
         self.decoder = default(decoder, nn.Identity())
 
-    def forward(self, all_x, masks, interactions):
-        feature_maps = []
-        pattern = 'b (h w) d -> b d h w' if self.channel_first else 'b (h w) d -> b h w d'
+    def forward(self, hierarchy_features, masks, interactions):
 
-        for mask, (i, j) in zip(masks, interactions):
-            is_patch_interaction = i == 0
+        # reduce masks
 
-            if not is_patch_interaction:
-                continue
+        masks = {
+            interaction: reduce(m, 'b ... t s -> b t s', 'mean')
+            for m, interaction in zip(masks, interactions)
+        }
 
-            mask_softmax = reduce(mask, 'b ... t s -> b t s', 'mean').softmax(dim = -1)
-            dense_features = einsum(mask_softmax, all_x[j], 'b t s, b s d -> b t d')
+        # default pathways
 
-            spatial = rearrange(dense_features, pattern, h = self.grid_h, w = self.grid_w)
-            feature_maps.append(self.decoder(spatial))
+        pathways = default(self.pathways, tuple((j, self.patch_pathway_id) for i, j in interactions if i == self.patch_pathway_id))
+        assert len(pathways) > 0, 'no valid pathways found'
 
-        assert len(feature_maps) > 0, 'no interactions found that chain to the main image'
+        # feature map construction
 
-        return feature_maps[0] if len(feature_maps) == 1 else tuple(feature_maps)
+        def construct_feature_map(pathway):
+            start, end = pathway[0], pathway[-1]
+            is_descending = start > end
+            features = hierarchy_features[start]
+
+            # chain interactions
+
+            for source, target in zip(pathway[:-1], pathway[1:]):
+                interaction = (target, source) if is_descending else (source, target)
+                assert interaction in masks, f'interaction {interaction} is missing'
+
+                mask = masks[interaction]
+
+                if not is_descending:
+                    mask = rearrange(mask, 'b i j -> b j i')
+
+                attn = mask.softmax(dim = -1)
+                features = einsum(attn, features, 'b t s, b s d -> b t d')
+
+            # rearrange spatial if ends in patches
+
+            if end == self.patch_pathway_id:
+                features = self.to_spatial(features)
+
+            return self.decoder(features)
+
+        feature_maps = tuple(construct_feature_map(p) for p in pathways)
+
+        return feature_maps[0] if len(feature_maps) == 1 else feature_maps
 
 def FeedForward(dim, hidden_dim, dropout = 0., out_dim = None):
     return nn.Sequential(
@@ -364,7 +407,7 @@ class WWT(Module):
         unpacked_seqs = (inv(seq) for seq, inv in zip(x, inverse_packs))
         tokens_out, *slots_out = (seq for _, seq in unpacked_seqs)
         slots_out = tuple(slots_out)
-        all_x = (tokens_out, *slots_out)
+        hierarchy_features = (tokens_out, *slots_out)
 
         # process masks
 
@@ -393,7 +436,7 @@ class WWT(Module):
         if not self.has_task_heads:
             return out
 
-        return (out, *(head(all_x, processed_masks, self.interactions) for head in self.task_heads))
+        return (out, *(head(hierarchy_features, processed_masks, self.interactions) for head in self.task_heads))
 
 if __name__ == '__main__':
     configs = (
@@ -409,6 +452,7 @@ if __name__ == '__main__':
         autoencoding_head = AutoencodingHead(
             image_size = 256,
             patch_size = 32,
+            pathways = ((3, 2, 0), (0, 2, 3)),
             channel_first = channel_first
         )
 
@@ -418,8 +462,8 @@ if __name__ == '__main__':
             num_classes = 1000,
             dim = 256,
             depth = 2,
-            num_slots = (32, 16),
-            interactions = ((0, 1), (0, 2), (1, 2)),
+            num_slots = (64, 32, 16),
+            interactions = ((0, 1), (0, 2), (1, 2), (2, 3)),
             heads = 4,
             mlp_dim = 512,
             return_tokens = True,
@@ -427,7 +471,7 @@ if __name__ == '__main__':
             token_softmax_over_slots = token_softmax_over_slots,
             project_mask_groups = project_mask_groups,
             num_register_tokens = 4,
-            num_register_slots = (4, 2),
+            num_register_slots = (4, 4, 2),
             task_heads = [autoencoding_head]
         )
 
@@ -440,13 +484,13 @@ if __name__ == '__main__':
         assert token_preds.shape == (1, 1000)
 
         assert isinstance(dense_feature_maps, tuple) and len(dense_feature_maps) == 2
-        dense_high, dense_low = dense_feature_maps
+        dense_320, dense_023 = dense_feature_maps
 
         if channel_first:
-            assert dense_high.shape == (1, 256, 8, 8)
-            assert dense_low.shape == (1, 256, 8, 8)
+            assert dense_320.shape == (1, 256, 8, 8)
         else:
-            assert dense_high.shape == (1, 8, 8, 256)
-            assert dense_low.shape == (1, 8, 8, 256)
+            assert dense_320.shape == (1, 8, 8, 256)
+
+        assert dense_023.shape == (1, 16, 256)
 
         print('success')

@@ -1579,25 +1579,63 @@ embeddings # ((1, 257, 192), (1, 17, 384)) - (batch x patches x dimension) <- la
 
 <img src="./images/jet_vit.png" width="400px"></img>
 
-*Efficient high-resolution ViT that converts a pretrained full-attention ViT into a hybrid of ReLU-based linear attention with squeeze dynamic convolution, window attention, and a small number of full softmax attention layers via Post-Training Attention Search.*
+Efficient high-resolution ViT that converts a pretrained full-attention ViT into a hybrid of ReLU-based linear attention with squeeze dynamic convolution, window attention, and a small number of full softmax attention layers via a three-stage Post-Training Attention Search.
+
+Stage 1 — Each layer randomly picks between window and linear attention every forward pass.
 
 ```python
 import torch
 from vit_pytorch.jet_vit import JetViT
 
+# LA - Linear Attention
+# WA - Window Attention
+# FA - Full Attention
 
 model = JetViT(
     image_size = 224,
     patch_size = 16,
     num_classes = 1000,
-    dim = 768,
-    depth = 12,
-    heads = 12,
+    dim = 512,
+    depth = 6,
+    heads = 8,
     dim_head = 64,
     mlp_dim = 3072,
-    full_attn_layers = [7, 11],
-    window_attn_layers = [1, 2, 3, 4, 5, 6, 8, 9, 10],
     window_size = 7,
+    attn_layers = [('WA', 'LA')] * 6,   # randomly sample between window and linear attention
+)
+```
+
+Stage 2 — Each layer randomly picks between its stage-1 winner and full softmax attention.
+
+```python
+model = JetViT(
+    image_size = 224,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 512,
+    depth = 6,
+    heads = 8,
+    dim_head = 64,
+    mlp_dim = 3072,
+    window_size = 7,                          
+    attn_layers = [('LA', 'FA'), ('LA', 'FA'), ('WA', 'FA'), ('LA', 'FA'), ('LA', 'FA'), ('WA', 'FA')]
+)
+```
+
+Inference: every layer uses its winning attention type deterministically.
+
+```python
+model = JetViT(
+    image_size = 224,
+    patch_size = 16,
+    num_classes = 1000,
+    dim = 512,
+    depth = 6,
+    heads = 8,
+    dim_head = 64,
+    mlp_dim = 3072,
+    window_size = 7,   
+    attn_layers = ['LA', 'LA', 'WA', 'FA', 'LA', 'FA']
 )
 
 img = torch.randn(1, 3, 224, 224)

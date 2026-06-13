@@ -1617,7 +1617,7 @@ model = JetViT(
     heads = 8,
     dim_head = 64,
     mlp_dim = 3072,
-    window_size = 7,                          
+    window_size = 7,
     attn_layers = [('LA', 'FA'), ('LA', 'FA'), ('WA', 'FA'), ('LA', 'FA'), ('LA', 'FA'), ('WA', 'FA')]
 )
 ```
@@ -1634,7 +1634,7 @@ model = JetViT(
     heads = 8,
     dim_head = 64,
     mlp_dim = 3072,
-    window_size = 7,   
+    window_size = 7,
     attn_layers = ['LA', 'LA', 'WA', 'FA', 'LA', 'FA']
 )
 

@@ -1,4 +1,5 @@
 import math
+import random
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -7,10 +8,15 @@ from torch.nn import Module, ModuleList
 from einops import rearrange, reduce, einsum
 from einops.layers.torch import Rearrange
 
+
+
 # helpers
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
+
+def exists(val):
+    return val is not None
 
 # classes
 
@@ -56,20 +62,20 @@ class SqueezeDynamicConv(Module):
 
     def forward(self, v):
         b, heads, _, _ = v.shape
-
+        
         # Squeeze global context
         v_mean = reduce(v, 'b h n d -> b (h d)', 'mean')
 
-        weight = self.mlp(v_mean)
+        weight = self.mlp(v_mean) 
 
         weight = rearrange(weight, 'b (c k1 k2) -> (b c) 1 k1 k2', c = self.dim, k1 = self.kernel_size, k2 = self.kernel_size)
 
         v_spatial = rearrange(v, 'b h (h_s w_s) d -> 1 (b h d) h_s w_s', h_s = self.h_s, w_s = self.w_s)
 
         out = F.conv2d(v_spatial, weight, padding = self.padding, groups = b * self.dim)
-
+        
         return rearrange(out, '1 (b h d) h_s w_s -> b h (h_s w_s) d', b = b, h = heads, h_s = self.h_s, w_s = self.w_s)
-
+    
 class WindowAttention(nn.Module):
     def __init__(
         self,
@@ -145,7 +151,7 @@ class WindowAttention(nn.Module):
         out = rearrange(out, 'b x y w1 w2 d -> b (x w1) (y w2) d')
 
         return rearrange(out, 'b h w d -> b (h w) d')
-
+   
 
 class JetViTLinearAttention(Module):
     def __init__(self, dim, h_s, w_s, heads = 8, dim_head = 64, dropout = 0., kernel_size = 3):
@@ -159,7 +165,7 @@ class JetViTLinearAttention(Module):
 
         self.norm = nn.LayerNorm(dim)
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
-
+        
         self.dynamic_conv = SqueezeDynamicConv(inner_dim, h_s, w_s, kernel_size = kernel_size)
 
         self.to_out = nn.Sequential(
@@ -180,7 +186,7 @@ class JetViTLinearAttention(Module):
         conv_out = rearrange(conv_out, 'b h n d -> b n (h d)')
 
         return self.to_out(linear_out + conv_out)
-
+    
 
 class Attention(Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
@@ -217,25 +223,62 @@ class Attention(Module):
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
+    
 
 
-class Transformer(Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout = 0., full_attn_layers = (), window_attn_layers = (), window_size = 7):
+class RandomLayerSelector(nn.Module):
+    def __init__(self, options: dict, attn_layer: list):
         super().__init__()
+        self.options = nn.ModuleDict(options)
+        self.attn_layer = attn_layer
+
+    def forward(self, x):
+        
+        if isinstance(self.attn_layer, tuple):
+            key = random.choice(self.attn_layer)
+        elif isinstance(self.attn_layer, str):
+            key = self.attn_layer
+            
+        return self.options[key](x)
+
+
+class Transformer(nn.Module):
+    def __init__(
+        self, 
+        dim, 
+        depth, 
+        heads, 
+        dim_head, 
+        mlp_dim, 
+        h_s, 
+        w_s, 
+        dropout=0., 
+        window_size=7, 
+        attn_layers=None,
+
+    ):
+        super().__init__()
+
+        if attn_layers is None:
+            attn_layers = ['FA'] * depth
+
         self.norm = nn.LayerNorm(dim)
-        self.layers = ModuleList([])
+        self.layers = nn.ModuleList([])
 
         for i in range(depth):
-            if i in full_attn_layers:
-                attn = Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)
-            elif i in window_attn_layers:
-                attn = WindowAttention(dim, h_s, w_s, dim_head = dim_head, dropout = dropout, window_size = window_size)
-            else:
-                attn = JetViTLinearAttention(dim, h_s, w_s, heads = heads, dim_head = dim_head, dropout = dropout)
+         
+            attn = RandomLayerSelector(
+                options={
+                    'WA': WindowAttention(dim, h_s, w_s, dim_head=dim_head, dropout=dropout, window_size=window_size),
+                    'LA': JetViTLinearAttention(dim, h_s, w_s, heads=heads, dim_head=dim_head, dropout=dropout),
+                    'FA': Attention(dim, heads=heads, dim_head=dim_head, dropout=dropout) # Updated name to match your API
+                },
+                attn_layer=attn_layers[i]
+            )
 
-            self.layers.append(ModuleList([
+            self.layers.append(nn.ModuleList([
                 attn,
-                FeedForward(dim, mlp_dim, dropout = dropout)
+                FeedForward(dim, mlp_dim, dropout=dropout)
             ]))
 
     def forward(self, x):
@@ -247,7 +290,23 @@ class Transformer(Module):
 
 
 class JetViT(Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., full_attn_layers = (), window_attn_layers = (), window_size = 7):
+    def __init__(
+        self, 
+        *, 
+        image_size, 
+        patch_size, 
+        num_classes, 
+        dim, 
+        depth, 
+        heads, 
+        mlp_dim, 
+        channels = 3, 
+        dim_head = 64, 
+        dropout = 0., 
+        emb_dropout = 0., 
+        window_size = 7, 
+        attn_layers = None,            
+    ):
         super().__init__()
         image_height, image_width = pair(image_size)
         self.patch_size = patch_height, patch_width = pair(patch_size)
@@ -270,7 +329,18 @@ class JetViT(Module):
         self.pos_embedding = nn.Parameter(torch.randn(num_patches, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, h_s, w_s, dropout, full_attn_layers, window_attn_layers, window_size)
+        self.transformer = Transformer(
+            dim, 
+            depth, 
+            heads, 
+            dim_head, 
+            mlp_dim, 
+            h_s, 
+            w_s, 
+            dropout, 
+            window_size, 
+            attn_layers,  
+        )
 
         self.to_latent = nn.Identity()
         self.mlp_head = nn.Linear(dim, num_classes) if num_classes > 0 else None

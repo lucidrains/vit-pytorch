@@ -1644,6 +1644,35 @@ img = torch.randn(1, 3, 224, 224)
 out = model(img)  # (1, 1000)
 ```
 
+## ViT-5
+
+<img src="./images/vit-5.png" width="400px"></img>
+
+Vision Transformers for the Mid-2020s. An updated ViT architecture combining RMSNorm, QK-norm, LayerScale, register tokens, and 2D axial RoPE (applied to patch and register tokens, excluding the CLS token).
+
+
+```python
+import torch
+from vit_pytorch.vit_5 import ViT
+
+model = ViT(
+    image_size    = 256,
+    patch_size    = 16,
+    num_classes   = 1000,
+    dim           = 512,
+    depth         = 6,
+    heads         = 8,
+    mlp_dim       = 1024,
+    dim_head      = 64,
+    dropout       = 0.1,
+    emb_dropout   = 0.1,
+    num_registers = 4,
+)
+
+img = torch.randn(2, 3, 256, 256)
+logits = model(img)  # (2, 1000)
+```
+
 ## Research Ideas
 
 ### Efficient Attention
@@ -2430,6 +2459,18 @@ Coming from computer vision and new to transformers? Here are some resources tha
     archivePrefix = {arXiv},
     primaryClass = {cs.CV},
     url     = {https://arxiv.org/abs/2605.12021},
+}
+```
+
+```bibtex
+@misc{wang2026vit5,
+    title   = {ViT-5: Vision Transformers for The Mid-2020s},
+    author  = {Feng Wang and Sucheng Ren and Tiezheng Zhang and Predrag Neskovic and Anand Bhattad and Cihang Xie and Alan Yuille},
+    year    = {2026},
+    eprint  = {2602.08071},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.CV},
+    url     = {https://arxiv.org/abs/2602.08071},
 }
 ```
 

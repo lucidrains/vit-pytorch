@@ -6,7 +6,7 @@ from torch import nn, stack, tensor
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList
 
-from einops import rearrange, repeat, reduce, einsum, pack, unpack
+from einops import rearrange, repeat, reduce, einsum
 from einops.layers.torch import Rearrange
 
 # helpers
@@ -74,15 +74,10 @@ class DecorrelationLoss(Module):
             if num_sampled <= 1:
                 return self.zero
 
-            tokens, packed_shape = pack([tokens], '* n d e')
-
-            indices = torch.randn(tokens.shape[:2]).argsort(dim = -1)[..., :num_sampled, :]
-
-            batch_arange = torch.arange(tokens.shape[0], device = tokens.device)
-            batch_arange = rearrange(batch_arange, 'b -> b 1')
-
-            tokens = tokens[batch_arange, indices]
-            tokens, = unpack(tokens, packed_shape, '* n d e')
+            indices = torch.randn(tokens.shape[:-1], device = device)
+            indices = indices.argsort(dim = -1)[..., :num_sampled]
+            indices = repeat(indices, '... n -> ... n d', d = dim)
+            tokens = tokens.gather(-2, indices)
 
         if self.use_subspace:
             tokens = einsum(tokens, self.proj, '... n d, s d e -> ... s n e')

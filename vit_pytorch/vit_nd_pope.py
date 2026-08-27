@@ -9,6 +9,8 @@ from torch.amp import autocast
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
 
+from vit_pytorch.vit_nd_masking import get_nd_causal_mask_fn, create_nd_block_mask, nd_attention
+
 # helpers
 
 def exists(val):
@@ -24,7 +26,6 @@ def ensure_tuple(t, length):
     if isinstance(t, (tuple, list)):
         assert len(t) == length, f'Expected tuple of length {length}, got {len(t)}'
         return tuple(t)
-
     return (t,) * length
 
 # golden gate rotary - Jerry Xiong, PhD student at UIUC
@@ -135,9 +136,6 @@ class Attention(Module):
         self.scale = dim_head ** -0.5
 
         self.norm = nn.LayerNorm(dim)
-        self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(dropout)
-
         self.to_qk = nn.Linear(dim, inner_dim * 2, bias = False)
         self.to_v = nn.Linear(dim, inner_dim, bias = False)
 
@@ -146,7 +144,7 @@ class Attention(Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
 
-    def forward(self, x, polar_pos_emb = None):
+    def forward(self, x, polar_pos_emb = None, block_mask = None, mask_fn = None):
         x = self.norm(x)
         qkv = (*self.to_qk(x).chunk(2, dim = -1), self.to_v(x))
 
@@ -157,12 +155,8 @@ class Attention(Module):
             q = apply_polar_pos_emb(q, freqs)
             k = apply_polar_pos_emb(k, freqs + bias)
 
-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        out = nd_attention(q, k, v, mask_fn = mask_fn, block_mask = block_mask, scale = self.scale)
 
-        attn = self.attend(dots)
-        attn = self.dropout(attn)
-
-        out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
@@ -181,7 +175,7 @@ class Transformer(Module):
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x, pos = None):
+    def forward(self, x, pos = None, block_mask = None, mask_fn = None):
 
         # pope embedding
 
@@ -192,7 +186,7 @@ class Transformer(Module):
         # transformer layers
 
         for attn, ff in self.layers:
-            x = attn(x, polar_pos_emb) + x
+            x = attn(x, polar_pos_emb, block_mask, mask_fn) + x
             x = ff(x) + x
 
         return self.norm(x)
@@ -216,7 +210,8 @@ class ViTND(Module):
         pope_min_freq: float = 1.0,
         pope_max_freq: float = 10000.0,
         pope_p_zero_freqs: float = 0.0,
-        pope_init_learned_bias_uniform = False
+        pope_init_learned_bias_uniform = False,
+        causal_dims: int | tuple[int, ...] | None = None
     ):
         super().__init__()
 
@@ -257,6 +252,12 @@ class ViTND(Module):
         )
 
         self.dropout = nn.Dropout(emb_dropout)
+
+        # causal masking along one or more dimensions
+
+        self.causal_mask_fn = get_nd_causal_mask_fn(num_patches_per_dim, causal_dims, ndim = ndim)
+
+        self.heads = heads
 
         # golden gate pope
 
@@ -314,7 +315,14 @@ class ViTND(Module):
 
         x = self.dropout(x)
 
-        embed = self.transformer(x, pos)
+        block_mask = None
+        mask_fn = self.causal_mask_fn
+
+        if exists(self.causal_mask_fn):
+            seq_len = x.shape[1]
+            block_mask = create_nd_block_mask(self.causal_mask_fn, self.heads, seq_len, device = x.device)
+
+        embed = self.transformer(x, pos, block_mask, mask_fn)
 
         # return the embed with reconstituted patch shape
 
@@ -342,10 +350,14 @@ if __name__ == '__main__':
         mlp_dim = 2048,
         channels = 3,
         dropout = 0.1,
-        emb_dropout = 0.1
+        emb_dropout = 0.1,
+        causal_dims = (0,) # time dimension is causal
     )
 
     data = torch.randn(3, 3, 4, 8, 16, 32, 64)
+
+    if torch.cuda.is_available():
+        model = torch.compile(model)
 
     logits = model(data)
 

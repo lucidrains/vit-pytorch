@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vit-pytorch"
-version = "1.24.2"
+version = "1.25.0"
 description = "Vision Transformer (ViT) - Pytorch"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
@@ -32,15 +32,15 @@ classifiers = [
 ]
 dependencies = [
   "einops>=0.8.2",
-  "torch>=2.4",
+  "torch>=2.5",
   "torchvision",
 ]
 
 [project.optional-dependencies]
 test = [
   "pytest",
-  "torch==2.4.0",
-  "torchvision==0.19.0",
+  "torch==2.5.0",
+  "torchvision==0.20.0",
 ]
 
 [project.urls]

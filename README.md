@@ -2475,4 +2475,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{kuhn2026levjepa,
+    title   = {LeVJEPA: Efficient & Scalable Video Pretraining without the Heuristics},
+    author  = {Lukas Kuhn and Lucas Maes and Giuseppe Serra and Quentin Le Lidec and Yann LeCun and Randall Balestriero and Florian Buettner},
+    year    = {2026},
+    eprint  = {2608.27395},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2608.27395},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

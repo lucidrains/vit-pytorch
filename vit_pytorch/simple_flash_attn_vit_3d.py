@@ -2,7 +2,7 @@ from packaging import version
 from collections import namedtuple
 
 import torch
-from torch import nn
+from torch import nn, einsum
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList
 
@@ -169,3 +169,21 @@ class SimpleViT(Module):
 
         x = self.to_latent(x)
         return self.linear_head(x)
+
+if __name__ == "__main__":
+    vit = SimpleViT(
+        image_size = 128,
+        image_patch_size = 16,
+        frames = 8,
+        frame_patch_size = 2,
+        num_classes = 1000,
+        dim = 256,
+        depth = 6,
+        heads = 8,
+        mlp_dim = 512,
+    )
+
+    videos = torch.randn(2, 3, 8, 128, 128)
+
+    predictions = vit(videos)
+    assert predictions.shape == (2, 1000)

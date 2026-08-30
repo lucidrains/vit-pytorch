@@ -407,49 +407,27 @@ class LeVJEPAND(Module):
 # quick run
 
 if __name__ == '__main__':
-    # works for any number of dimensions - 1d audio (b c n), 2d images (b c h w), 3d video (b c t h w), 4d volumes (b c t x y z)
+    # works for any number of dimensions - 1d audio (b c t), 2d (b c t h), 3d video (b c t h w), 4d volumes (b c t x y z)
 
-    encoder = NDTransformer(
-        ndim = 3,
-        input_shape = (8, 64, 64),
-        patch_size = (1, 16, 16),
-        dim = 128,
-        depth = 2,
-        heads = 4,
-        mlp_dim = 256
-    )
+    # contrived augmentation for source and target views - random noise
 
-    learner = LeVJEPAND(
-        encoder,
-        input_shape = (8, 64, 64)
-    )
+    augment = lambda x: x + torch.randn_like(x) * 0.1
+
+    # 3d video (b c t h w)
+
+    learner_3d = LeVJEPAND(NDTransformer(ndim = 3, input_shape = (8, 64, 64), patch_size = (1, 16, 16), dim = 128, depth = 2, heads = 4, mlp_dim = 256), input_shape = (8, 64, 64), augment_src = augment, augment_tgt = augment)
 
     video = torch.randn(2, 3, 8, 64, 64)
+    loss_3d = learner_3d(video)
+    loss_3d.backward()
 
-    loss = learner(video)
-    loss.backward()
-
-    embed = learner(video, return_embedding = True)
+    embed = learner_3d(video, return_embedding = True)
     assert embed.shape == (2, 128)
 
-    # 4d volumes (audio spectrograms, sequential depths, etc.) - b c t z x y
+    # 4d volumes (b c t x y z) - e.g. time series of ct / mri scans
 
-    encoder_4d = NDTransformer(
-        ndim = 4,
-        input_shape = (8, 16, 32, 32),
-        patch_size = (1, 4, 8, 8),
-        dim = 128,
-        depth = 2,
-        heads = 4,
-        mlp_dim = 256
-    )
+    learner_4d = LeVJEPAND(NDTransformer(ndim = 4, input_shape = (8, 16, 32, 32), patch_size = (1, 4, 8, 8), dim = 128, depth = 2, heads = 4, mlp_dim = 256), input_shape = (8, 16, 32, 32), augment_src = augment, augment_tgt = augment)
 
-    learner_4d = LeVJEPAND(
-        encoder_4d,
-        input_shape = (8, 16, 32, 32)
-    )
-
-    volume = torch.randn(2, 3, 8, 16, 32, 32)
-
-    loss4d = learner_4d(volume)
-    loss4d.backward()
+    volumetric = torch.randn(2, 3, 8, 16, 32, 32)
+    loss_4d = learner_4d(volumetric)
+    loss_4d.backward()

@@ -13,7 +13,8 @@ def cast_tuple(val, num):
     return val if isinstance(val, tuple) else (val,) * num
 
 def conv_output_size(image_size, kernel_size, stride, padding = 0):
-    return int(((image_size - kernel_size + (2 * padding)) / stride) + 1)
+    assert stride > 0, 'stride must be greater than 0'
+    return (image_size - kernel_size + (2 * padding)) // stride + 1
 
 # classes
 

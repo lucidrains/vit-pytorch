@@ -2487,4 +2487,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{richemond2020byolworks,
+    title   = {BYOL works even without batch statistics},
+    author  = {Pierre H. Richemond and Jean-Bastien Grill and Florent Altché and Corentin Tallec and Florian Strub and Andrew Brock and Samuel Smith and Soham De and Razvan Pascanu and Bilal Piot and Michal Valko},
+    year    = {2020},
+    eprint  = {2010.10241},
+    archivePrefix = {arXiv},
+    primaryClass = {stat.ML},
+    url     = {https://arxiv.org/abs/2010.10241},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

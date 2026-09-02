@@ -331,6 +331,21 @@ class VideoTransformer(Module):
         x = self.transformer(x, self.rotary_emb, coords, block_mask)
         return self.norm(x)
 
+# byol works even without batch statistics - richemond et al. https://arxiv.org/abs/2010.10241
+
+class WeightStandardizedLinear(Module):
+    def __init__(self, dim, dim_out, bias = True):
+        super().__init__()
+        self.linear = nn.Linear(dim, dim_out, bias = bias)
+
+    def forward(self, x):
+        w = self.linear.weight
+
+        w = w - w.mean(dim = -1, keepdim = True)
+        w = w / (w.square().mean(dim = -1, keepdim = True) + 1e-4).sqrt()
+
+        return F.linear(x, w, self.linear.bias)
+
 # main class - LeVJEPA
 
 LeVJEPALosses = namedtuple('LeVJEPALosses', ['invariance_loss', 'sigreg_loss'])
@@ -348,6 +363,8 @@ class LeVJEPA(Module):
         global_crop_scale = (0.8, 1.0),
         drop_ratio = 0.95,
         use_batch_norm = True,
+        norm_fn = None,
+        use_weight_standardization = False,
         invariance_loss_weight = 1.,
         sigreg_loss_weight = 0.02,
         sigreg_loss_kwargs = dict(num_proj = 1024, knots = 17),
@@ -367,11 +384,12 @@ class LeVJEPA(Module):
 
         # small projector, discarded after pretraining
 
-        norm_layer = nn.BatchNorm1d if use_batch_norm else nn.RMSNorm
+        norm_fn = default(norm_fn, nn.BatchNorm1d if use_batch_norm else nn.RMSNorm)
+        linear = WeightStandardizedLinear if use_weight_standardization else nn.Linear
 
         self.projector = nn.Sequential(
-            nn.Linear(encoder.dim, projection_hidden),
-            norm_layer(projection_hidden),
+            linear(encoder.dim, projection_hidden),
+            norm_fn(projection_hidden),
             nn.GELU(),
             nn.Linear(projection_hidden, num_classes_K)
         )

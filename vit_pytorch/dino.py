@@ -48,9 +48,12 @@ def loss_fn(
     eps = 1e-20
 ):
     teacher_logits = teacher_logits.detach()
-    student_probs = (student_logits / student_temp).softmax(dim = -1)
+    # Keep the computation in log space so tiny student probabilities do not
+    # underflow to zero before taking their logarithm (notably in float16).
+    # `eps` remains in the signature for backwards compatibility.
+    student_log_probs = F.log_softmax(student_logits / student_temp, dim = -1)
     teacher_probs = ((teacher_logits - centers) / teacher_temp).softmax(dim = -1)
-    return - (teacher_probs * torch.log(student_probs + eps)).sum(dim = -1).mean()
+    return - (teacher_probs * student_log_probs).sum(dim = -1).mean()
 
 # augmentation utils
 

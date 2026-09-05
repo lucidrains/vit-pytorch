@@ -326,17 +326,22 @@ class NDTransformer(Module):
 # byol works even without batch statistics - richemond et al. https://arxiv.org/abs/2010.10241
 
 class WeightStandardizedLinear(Module):
-    def __init__(self, dim, dim_out, bias = True):
+    def __init__(self, dim, dim_out, bias = True, eps = 1e-4):
         super().__init__()
-        self.linear = nn.Linear(dim, dim_out, bias = bias)
+        self.eps = eps
+        self.weight = nn.Parameter(torch.randn(dim_out, dim) * dim ** -0.5)
+
+        self.bias = nn.Parameter(torch.zeros(dim_out)) if bias else None
 
     def forward(self, x):
-        w = self.linear.weight
+        w, bias, eps = self.weight, self.bias, self.eps
 
-        w = w - w.mean(dim = -1, keepdim = True)
-        w = w / (w.square().mean(dim = -1, keepdim = True) + 1e-4).sqrt()
+        mean = w.mean(dim = -1, keepdim = True)
+        var = w.var(dim = -1, keepdim = True, unbiased = False)
 
-        return F.linear(x, w, self.linear.bias)
+        w = (w - mean) / var.clamp_min(eps).sqrt()
+
+        return F.linear(x, w, bias)
 
 # main class - LeVJEPA for any number of dimensions
 

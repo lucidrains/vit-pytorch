@@ -28,7 +28,7 @@ class AxialRotaryEmbedding(nn.Module):
     def forward(self, x):
         device, dtype, n = x.device, x.dtype, int(sqrt(x.shape[-2]))
 
-        seq = torch.linspace(-1., 1., steps = n, device = device)
+        seq = torch.linspace(-1., 1., steps = n, device = device, dtype = dtype)
         seq = seq.unsqueeze(-1)
 
         scales = self.scales[(*((None,) * (len(seq.shape) - 1)), Ellipsis)]

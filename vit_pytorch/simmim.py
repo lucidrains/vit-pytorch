@@ -43,7 +43,7 @@ class SimMIM(nn.Module):
 
         # get positions
 
-        pos_emb = self.encoder.pos_embedding[:, 1:(num_patches + 1)]
+        pos_emb = self.encoder.pos_embedding[1:(num_patches + 1)]
 
         # patch to encoder tokens and add positions
 

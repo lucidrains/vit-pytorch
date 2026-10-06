@@ -158,11 +158,11 @@ class MPP(nn.Module):
 
         # add cls token to input sequence
         b, n, _ = masked_input.shape
-        cls_tokens = repeat(transformer.cls_token, '() n d -> b n d', b=b)
+        cls_tokens = repeat(transformer.cls_token, 'n d -> b n d', b=b)
         masked_input = torch.cat((cls_tokens, masked_input), dim=1)
 
         # add positional embeddings to input
-        masked_input += transformer.pos_embedding[:, :(n + 1)]
+        masked_input += transformer.pos_embedding[:(n + 1)]
         masked_input = transformer.dropout(masked_input)
 
         # get generator output and get mpp loss

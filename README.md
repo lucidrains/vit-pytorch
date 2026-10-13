@@ -2499,4 +2499,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{chng2026loopeddit,
+    title   = {Looped Diffusion Transformer},
+    author  = {Yong Xien Chng and Tianyi Chen and Wenwen Tong and Haiwen Diao and Zhongang Cai and Lei Yang and Ziwei Liu and Lewei Lu and Dahua Lin and Gao Huang},
+    year    = {2026},
+    eprint  = {2609.40305},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV},
+    url     = {https://arxiv.org/abs/2609.40305},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

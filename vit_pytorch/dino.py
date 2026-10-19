@@ -107,7 +107,7 @@ class MLP(nn.Module):
         self.net = nn.Sequential(
             *layers,
             L2Norm(),
-            nn.Linear(hidden_size, dim_out)
+            nn.Linear(dims[-1], dim_out)
         )
 
     def forward(self, x):

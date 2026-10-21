@@ -81,7 +81,6 @@ class SimMIM(nn.Module):
 
         masked_patches = patches[batch_range, masked_indices]
 
-        # calculate reconstruction loss
-
-        recon_loss = F.l1_loss(pred_pixel_values, masked_patches) / num_masked
+        # l1_loss already averages. Dividing by the mask count scored a miss of 1 as 0.5.
+        recon_loss = F.l1_loss(pred_pixel_values, masked_patches)
         return recon_loss

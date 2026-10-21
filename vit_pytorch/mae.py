@@ -50,7 +50,7 @@ class MAE(nn.Module):
 
         tokens = self.patch_to_emb(patches)
         if self.encoder.pool == "cls":
-            tokens += self.encoder.pos_embedding[:, 1:(num_patches + 1)]
+            tokens += self.encoder.pos_embedding[1:(num_patches + 1)]
         elif self.encoder.pool == "mean":
             tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype)
 

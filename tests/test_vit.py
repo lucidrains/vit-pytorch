@@ -18,3 +18,29 @@ def test_vit():
 
     preds = v(img)
     assert preds.shape == (1, 1000), 'correct logits outputted'
+
+def test_masked_pretraining_wrappers():
+    from vit_pytorch import MAE
+    from vit_pytorch.simmim import SimMIM
+    from vit_pytorch.mpp import MPP
+
+    v = ViT(
+        image_size = 64,
+        patch_size = 16,
+        num_classes = 10,
+        dim = 64,
+        depth = 1,
+        heads = 2,
+        mlp_dim = 128
+    )
+
+    img = torch.randn(2, 3, 64, 64)
+
+    mae = MAE(encoder = v, decoder_dim = 32)
+    mae(img).backward()
+
+    simmim = SimMIM(encoder = v)
+    simmim(img).backward()
+
+    mpp = MPP(transformer = v, patch_size = 16, dim = 64)
+    mpp(img).backward()

@@ -2511,4 +2511,13 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@inproceedings{Heddes2025DeepCrossAttentionST,
+    title   = {DeepCrossAttention: Supercharging Transformer Residual Connections},
+    author  = {Mike Heddes and Adel Javanmard and Kyriakos Axiotis and Gang Fu and MohammadHossein Bateni and Vahab S. Mirrokni},
+    year    = {2025},
+    url     = {https://api.semanticscholar.org/CorpusID:276250576}
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

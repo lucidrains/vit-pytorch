@@ -13,6 +13,7 @@ q / k / v are mixed over depth with 3 zero-init pseudo-queries
 improvisations:
 - per_head: each attention head gets its own q / k / v depth mix (AttnRes found per-head depth mixing hurts)
 - ffn_heads: each ffn head gets its own depth mix and proj_in slice
+- gate: headwise sigmoid gate on attention output, defaulting to the query stream (per-head depth mix when per_head)
 """
 
 from __future__ import annotations
@@ -139,7 +140,7 @@ def FeedForward(dim, hidden_dim, heads = 1):
     )
 
 class Attention(Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, per_head = False, eps = 1e-6):
+    def __init__(self, dim, heads = 8, dim_head = 64, per_head = False, gate = True, eps = 1e-6):
         super().__init__()
         inner_dim = dim_head * heads
         self.scale = dim_head ** -0.5
@@ -157,6 +158,14 @@ class Attention(Module):
         self.to_v = linear(dim, inner_dim, groups)
         self.to_out = linear(inner_dim, dim)
 
+        # headwise gate, each head from its own depth mix when per_head
+
+        self.to_gate = nn.Sequential(
+            linear(dim, heads, groups),
+            Rearrange('b n h -> b h n 1'),
+            nn.Sigmoid()
+        ) if gate else None
+
     def forward(self, xq, xk, xv):
         # xq / xk / xv: b n d, or h b n d when per_head
 
@@ -169,11 +178,15 @@ class Attention(Module):
         attn = logits.softmax(dim = -1)
 
         out = einsum(attn, v, 'b h n m, b h m d -> b h n d')
+
+        if exists(self.to_gate):
+            out = out * self.to_gate(xq)
+
         out = self.merge_heads(out)
         return self.to_out(out)
 
 class TransformerBlock(Module):
-    def __init__(self, dim, heads, dim_head, mlp_dim, per_head = False, ffn_heads = 1, eps = 1e-6):
+    def __init__(self, dim, heads, dim_head, mlp_dim, per_head = False, ffn_heads = 1, gate = True, eps = 1e-6):
         super().__init__()
         self.per_head = per_head
 
@@ -184,7 +197,7 @@ class TransformerBlock(Module):
             merge_heads = not per_head,
             eps = eps
         )
-        self.attn = Attention(dim, heads = heads, dim_head = dim_head, per_head = per_head, eps = eps)
+        self.attn = Attention(dim, heads = heads, dim_head = dim_head, per_head = per_head, gate = gate, eps = eps)
 
         self.ffn_res = AttentionResidual(dim, streams = 1, heads = ffn_heads, eps = eps) if ffn_heads > 1 else None
         self.ff = FeedForward(dim, mlp_dim, heads = ffn_heads)
@@ -207,11 +220,11 @@ class TransformerBlock(Module):
         return x + self.ff(ffn_in)
 
 class Transformer(Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, per_head = False, ffn_heads = 1, eps = 1e-6):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, per_head = False, ffn_heads = 1, gate = True, eps = 1e-6):
         super().__init__()
         self.norm = nn.RMSNorm(dim, eps = eps)
         self.layers = ModuleList([
-            TransformerBlock(dim, heads, dim_head, mlp_dim, per_head = per_head, ffn_heads = ffn_heads, eps = eps)
+            TransformerBlock(dim, heads, dim_head, mlp_dim, per_head = per_head, ffn_heads = ffn_heads, gate = gate, eps = eps)
             for _ in range(depth)
         ])
 
@@ -225,6 +238,7 @@ class SimpleViT(Module):
     """
     per_head: each attention head gets its own q / k / v depth mix (improvisation)
     ffn_heads: each ffn head gets its own depth mix and proj_in slice (improvisation)
+    gate: headwise sigmoid gate on attention output, sourced from xq by default (improvisation)
     """
     def __init__(
         self,
@@ -240,6 +254,7 @@ class SimpleViT(Module):
         channels = 3,
         per_head = False,
         ffn_heads = 1,
+        gate = True,
         eps = 1e-6,
         temperature = 10000
     ):
@@ -268,7 +283,7 @@ class SimpleViT(Module):
         )
 
         self.initial_ff = FeedForward(dim, mlp_dim)
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, per_head = per_head, ffn_heads = ffn_heads, eps = eps)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, per_head = per_head, ffn_heads = ffn_heads, gate = gate, eps = eps)
 
         self.linear_head = nn.Linear(dim, num_classes)
 
@@ -313,6 +328,7 @@ if __name__ == '__main__':
         block = last(vit.transformer.layers)
         assert exists(block.attn_res.pseudo_queries.grad)
         assert not exists(block.ffn_res) or exists(block.ffn_res.pseudo_queries.grad)
+        assert exists(block.attn.to_gate[0].weight.grad)
 
         label = 'multihead' if per_head else 'shared-head'
         print(f'multiway attn residual ({label}, ffn_heads = {ffn_heads}): ok')

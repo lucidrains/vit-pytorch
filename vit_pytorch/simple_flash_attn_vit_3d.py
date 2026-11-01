@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.nn import Module, ModuleList
 
-from einops import rearrange
+from einops import rearrange, einsum
 from einops.layers.torch import Rearrange
 
 # constants

@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from einops import rearrange
+from einops import rearrange, einsum
 from einops.layers.torch import Rearrange
 
 # constants

@@ -23,11 +23,11 @@ class DistillMixin:
     def forward(self, img, distill_token = None):
         distilling = exists(distill_token)
         x = self.to_patch_embedding(img)
-        b, n, _ = x.shape
+        b = x.shape[0]
 
-        cls_tokens = repeat(self.cls_token, 'n d -> b n d', b = b)
+        cls_tokens = self.cls_token.expand(b, -1, -1)
         x = torch.cat((cls_tokens, x), dim = 1)
-        x += self.pos_embedding[:(n + 1)]
+        x += self.pos_embedding[..., :x.shape[1], :]
 
         if distilling:
             distill_tokens = repeat(distill_token, 'n d -> b n d', b = b)

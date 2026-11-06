@@ -119,7 +119,7 @@ class AcceptVideoWrapper(Module):
 
         outputs, tree_spec = tree_flatten(outputs)
 
-        outputs = tuple(rearrange(t, '(b t) ... -> b t ...', t = time) if is_tensor(t) and t.numel() > 1 else t for t in outputs)
+        outputs = tuple(rearrange(t, '(b t) ... -> b t ...', t = time) if is_tensor(t) and t.ndim > 0 else t for t in outputs)
 
         # maybe project embedding
 

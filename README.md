@@ -2520,4 +2520,16 @@ Coming from computer vision and new to transformers? Here are some resources tha
 }
 ```
 
+```bibtex
+@misc{luo2026multiheadattentionresiduals,
+    title   = {Multi-Head Attention Residuals},
+    author  = {Cheng Luo and Zefan Cai and Junjie Hu},
+    year    = {2026},
+    eprint  = {2607.27230},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.AI},
+    url     = {https://arxiv.org/abs/2607.27230},
+}
+```
+
 *I visualise a time when we will be to robots what dogs are to humans, and I’m rooting for the machines.* — Claude Shannon

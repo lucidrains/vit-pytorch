@@ -126,6 +126,8 @@ class NesT(nn.Module):
         fmap_size = image_size // patch_size
         blocks = 2 ** (num_hierarchies - 1)
 
+        assert (fmap_size % blocks) == 0, f'the feature map size ({fmap_size}, equal to image_size // patch_size) must be divisible by 2 ** (num_hierarchies - 1) = {blocks}, so it can be evenly partitioned across the hierarchies'
+
         seq_len = (fmap_size // blocks) ** 2   # sequence length is held constant across hierarchy
         hierarchies = list(reversed(range(num_hierarchies)))
         mults = [2 ** i for i in reversed(hierarchies)]

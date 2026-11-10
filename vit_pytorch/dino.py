@@ -246,7 +246,7 @@ class Dino(nn.Module):
         self.to(device)
 
         # send a mock image tensor to instantiate singleton parameters
-        self.forward(torch.randn(2, 3, image_size, image_size, device=device))
+        self.forward(torch.randn(2, 3, image_size, image_size, device=device, dtype=next(net.parameters()).dtype))
 
     @singleton('teacher_encoder')
     def _get_teacher_encoder(self):

@@ -1,22 +1,26 @@
-import copy
+# Randall Balestriero, Yann LeCun - https://arxiv.org/abs/2511.08544
+
 import random
 from functools import wraps
 
 import torch
-from torch import nn
-from torch.nn import Module
 import torch.nn.functional as F
+from torch import cat, einsum, nn
+from torch.nn import Module
 
 from torchvision import transforms as T
 from einops import rearrange
 
-# helper functions
+# helpers
 
 def exists(val):
     return val is not None
 
 def default(val, d):
     return val if exists(val) else d
+
+def pair(t):
+    return t if isinstance(t, tuple) else (t, t)
 
 def singleton(cache_key):
     def inner_fn(fn):
@@ -35,31 +39,10 @@ def singleton(cache_key):
 def get_module_device(module):
     return next(module.parameters()).device
 
-def set_requires_grad(model, val):
-    for p in model.parameters():
-        p.requires_grad = val
-
 def l2norm(t, eps = 1e-6):
     return F.normalize(t, dim = -1, eps = eps)
 
-# exponential moving average
-
-class EMA():
-    def __init__(self, beta):
-        super().__init__()
-        self.beta = beta
-
-    def update_average(self, old, new):
-        if not exists(old):
-            return new
-        return old.lerp(new, 1. - self.beta)
-
-def update_moving_average(ema_updater, ma_model, current_model):
-    for current_params, ma_params in zip(current_model.parameters(), ma_model.parameters()):
-        old_weight, up_weight = ma_params.data, current_params.data
-        old_weight.lerp_(up_weight, 1. - ema_updater.beta)
-
-# loss function
+# sigreg loss
 
 def sigreg_loss(
     x,
@@ -67,34 +50,19 @@ def sigreg_loss(
     domain = (-5, 5),
     num_knots = 17
 ):
-    # Randall Balestriero - https://arxiv.org/abs/2511.08544
+    x = x.float() if x.dtype != torch.float64 else x
+    dim, device, dtype = x.shape[-1], x.device, x.dtype
 
-    dim, device = x.shape[-1], x.device
+    rand_projs = l2norm(torch.randn((num_slices, dim), device = device, dtype = dtype))
 
-    # slice sampling
-
-    rand_projs = torch.randn((num_slices, dim), device = device)
-    rand_projs = l2norm(rand_projs)
-
-    # integration points
-
-    t = torch.linspace(*domain, num_knots, device = device)
-
-    # theoretical CF for N(0, 1) and Gauss. window
-
+    t = torch.linspace(*domain, num_knots, device = device, dtype = dtype)
     exp_f = (-0.5 * t.square()).exp()
 
-    # empirical CF
+    x_t = einsum('... d, m d -> ... m', x, rand_projs)
+    x_t = rearrange(x_t, '... m -> (...) m 1') * t
 
-    x_t = torch.einsum('... d, m d -> ... m', x, rand_projs)
-    x_t = rearrange(x_t, '... m -> (...) m')
-
-    x_t = rearrange(x_t, 'n m -> n m 1') * t
-    ecf = (1j * x_t).exp().mean(dim = 0)
-
-    # weighted L2 distance
-
-    err = ecf.sub(exp_f).abs().square().mul(exp_f)
+    ecf_cos, ecf_sin = x_t.cos().mean(dim = 0), x_t.sin().mean(dim = 0)
+    err = ((ecf_cos - exp_f).square() + ecf_sin.square()) * exp_f
 
     return torch.trapezoid(err, t, dim = -1).mean()
 
@@ -111,7 +79,7 @@ class RandomApply(Module):
             return x
         return self.fn(x)
 
-# MLP class for projector
+# MLP projector
 
 class L2Norm(Module):
     def forward(self, x, eps = 1e-6):
@@ -120,22 +88,21 @@ class L2Norm(Module):
 class MLP(Module):
     def __init__(self, dim, dim_out, num_layers, hidden_size = 256):
         super().__init__()
+        assert num_layers >= 1
 
         layers = []
         dims = (dim, *((hidden_size,) * (num_layers - 1)))
 
-        for ind, (layer_dim_in, layer_dim_out) in enumerate(zip(dims[:-1], dims[1:])):
-            is_last = ind == (len(dims) - 1)
-
-            layers.extend([
-                nn.Linear(layer_dim_in, layer_dim_out),
-                nn.GELU() if not is_last else nn.Identity()
-            ])
+        for ind, (dim_in, dim_next) in enumerate(zip(dims[:-1], dims[1:])):
+            is_last = ind == (len(dims) - 2)
+            layers.append(nn.Linear(dim_in, dim_next))
+            if not is_last:
+                layers.append(nn.GELU())
 
         self.net = nn.Sequential(
             *layers,
             L2Norm(),
-            nn.Linear(hidden_size, dim_out)
+            nn.Linear(dims[-1], dim_out)
         )
 
     def forward(self, x):
@@ -158,22 +125,19 @@ class NetWrapper(Module):
         self.hook_registered = False
 
     def _find_layer(self):
-        if type(self.layer) == str:
-            modules = dict([*self.net.named_modules()])
-            return modules.get(self.layer, None)
-        elif type(self.layer) == int:
-            children = [*self.net.children()]
-            return children[self.layer]
+        if isinstance(self.layer, str):
+            return dict(self.net.named_modules()).get(self.layer, None)
+        elif isinstance(self.layer, int):
+            return [*self.net.children()][self.layer]
         return None
 
-    def _hook(self, _, input, output):
-        device = input[0].device
-        self.hidden[device] = output.flatten(1)
+    def _hook(self, _, __, output):
+        self.hidden[output.device] = output.flatten(1)
 
     def _register_hook(self):
         layer = self._find_layer()
         assert exists(layer), f'hidden layer ({self.layer}) not found'
-        handle = layer.register_forward_hook(self._hook)
+        layer.register_forward_hook(self._hook)
         self.hook_registered = True
 
     @singleton('projector')
@@ -191,7 +155,7 @@ class NetWrapper(Module):
 
         self.hidden.clear()
         _ = self.net(x)
-        hidden = self.hidden[x.device]
+        hidden = self.hidden.get(x.device)
         self.hidden.clear()
 
         assert exists(hidden), f'hidden layer {self.layer} never emitted an output'
@@ -207,7 +171,7 @@ class NetWrapper(Module):
 
 # main class
 
-class LeJEPA(nn.Module):
+class LeJEPA(Module):
     def __init__(
         self,
         net,
@@ -218,9 +182,6 @@ class LeJEPA(nn.Module):
         projection_layers = 4,
         local_upper_crop_scale = 0.4,
         global_lower_crop_scale = 0.5,
-        use_ema: bool | None = None,
-        moving_average_decay: float | None = None,
-        use_sigreg: bool | None = None,
         target_loss_weight = 1.,
         sigreg_loss_weight = 1.,
         sigreg_loss_kwargs = dict(
@@ -234,42 +195,21 @@ class LeJEPA(nn.Module):
         super().__init__()
         self.net = net
 
-        # resolve ema vs sigreg flags
-
-        use_ema = default(use_ema, not use_sigreg if exists(use_sigreg) else exists(moving_average_decay))
-        use_sigreg = default(use_sigreg, not use_ema)
-
-        self.use_ema = use_ema
-        self.use_sigreg = use_sigreg
-
-        self.target_encoder = None
-        self.target_ema_updater = EMA(default(moving_average_decay, 0.99)) if use_ema else None
-
-        # default BYOL augmentation
-
-        DEFAULT_AUG = torch.nn.Sequential(
-            RandomApply(
-                T.ColorJitter(0.8, 0.8, 0.8, 0.2),
-                p = 0.3
-            ),
-            T.RandomGrayscale(p=0.2),
+        default_aug = nn.Sequential(
+            RandomApply(T.ColorJitter(0.8, 0.8, 0.8, 0.2), p = 0.3),
+            T.RandomGrayscale(p = 0.2),
             T.RandomHorizontalFlip(),
-            RandomApply(
-                T.GaussianBlur((3, 3), (1.0, 2.0)),
-                p = 0.2
-            ),
-            T.Normalize(
-                mean=torch.tensor([0.485, 0.456, 0.406]),
-                std=torch.tensor([0.229, 0.224, 0.225])),
+            RandomApply(T.GaussianBlur((3, 3), (1.0, 2.0)), p = 0.2),
+            T.Normalize(mean = (0.485, 0.456, 0.406), std = (0.229, 0.224, 0.225))
         )
 
-        self.augment1 = default(augment_fn, DEFAULT_AUG)
-        self.augment2 = default(augment_fn2, DEFAULT_AUG)
+        self.augment1 = default(augment_fn, default_aug)
+        self.augment2 = default(augment_fn2, default_aug)
 
-        # local and global crops
+        image_h, image_w = pair(image_size)
 
-        self.local_crop = T.RandomResizedCrop((image_size, image_size), scale = (0.05, local_upper_crop_scale))
-        self.global_crop = T.RandomResizedCrop((image_size, image_size), scale = (global_lower_crop_scale, 1.))
+        self.local_crop = T.RandomResizedCrop((image_h, image_w), scale = (0.05, local_upper_crop_scale))
+        self.global_crop = T.RandomResizedCrop((image_h, image_w), scale = (global_lower_crop_scale, 1.))
 
         self.encoder = NetWrapper(net, num_classes_K, projection_hidden_size, projection_layers, layer = hidden_layer)
 
@@ -277,29 +217,13 @@ class LeJEPA(nn.Module):
         self.sigreg_loss_weight = sigreg_loss_weight
         self.sigreg_loss_kwargs = sigreg_loss_kwargs
 
-        self.has_sigreg_loss = self.use_sigreg and self.sigreg_loss_weight > 0.
-
-        # get device of network and make wrapper same device
         device = get_module_device(net)
         self.to(device)
 
-        # send a mock image tensor to instantiate singleton parameters
-        self.forward(torch.randn(2, 3, image_size, image_size, device=device))
+        # mock forward to instantiate singleton projector
 
-    @singleton('target_encoder')
-    def _get_target_encoder(self):
-        target_encoder = copy.deepcopy(self.encoder)
-        set_requires_grad(target_encoder, False)
-        return target_encoder
-
-    def reset_moving_average(self):
-        del self.target_encoder
-        self.target_encoder = None
-
-    def update_moving_average(self):
-        assert self.use_ema, 'you do not need to update moving average, since use_ema is set to False'
-        assert exists(self.target_encoder), 'target encoder has not been created yet'
-        update_moving_average(self.target_ema_updater, self.target_encoder, self.encoder)
+        with torch.no_grad():
+            self.forward(torch.randn(2, 3, image_h, image_w, device = device))
 
     def forward(
         self,
@@ -312,62 +236,50 @@ class LeJEPA(nn.Module):
 
         image_one, image_two = self.augment1(x), self.augment2(x)
 
-        local_image_one, local_image_two   = self.local_crop(image_one),  self.local_crop(image_two)
+        local_image_one, local_image_two = self.local_crop(image_one), self.local_crop(image_two)
         global_image_one, global_image_two = self.global_crop(image_one), self.global_crop(image_two)
 
-        local_images = torch.cat((local_image_one, local_image_two), dim = 0)
+        local_images = cat((local_image_one, local_image_two), dim = 0)
         proj_locals, _ = self.encoder(local_images)
         proj_local_one, proj_local_two = proj_locals.chunk(2, dim = 0)
 
         with torch.no_grad():
-            target_encoder = self._get_target_encoder() if self.use_ema else self.encoder
-
-            global_images = torch.cat((global_image_one, global_image_two), dim = 0)
-            proj_globals, _ = target_encoder(global_images)
+            global_images = cat((global_image_one, global_image_two), dim = 0)
+            proj_globals, _ = self.encoder(global_images)
             proj_global_one, proj_global_two = proj_globals.chunk(2, dim = 0)
 
         # invariance loss
 
         mse_loss = F.mse_loss(proj_local_one, proj_global_two) + F.mse_loss(proj_local_two, proj_global_one)
 
-        loss = mse_loss * self.target_loss_weight
-
-        if not self.has_sigreg_loss:
-            return loss
-
         # sigreg loss
 
         sreg_loss = sigreg_loss(proj_locals, **self.sigreg_loss_kwargs)
 
-        return loss + sreg_loss * self.sigreg_loss_weight
+        return mse_loss * self.target_loss_weight + sreg_loss * self.sigreg_loss_weight
 
 # quick run
 
 if __name__ == '__main__':
     from vit_pytorch import ViT
 
-    def create_model():
-        return ViT(
-            image_size = 256,
-            patch_size = 32,
-            num_classes = 1000,
-            dim = 1024,
-            depth = 6,
-            heads = 8,
-            mlp_dim = 2048
-        )
-
-    # 1. LeJEPA with SIGReg (default)
-
-    model = create_model()
+    model = ViT(
+        image_size = 256,
+        patch_size = 32,
+        num_classes = 1000,
+        dim = 1024,
+        depth = 6,
+        heads = 8,
+        mlp_dim = 2048
+    )
 
     learner = LeJEPA(
         model,
         image_size = 256,
-        hidden_layer = 'to_latent',          # layer name where output is hidden dimension
-        projection_hidden_size = 256,        # projector network hidden dimension
-        projection_layers = 4,               # number of layers in projection network
-        num_classes_K = 65336,               # output dimension
+        hidden_layer = 'to_latent',
+        projection_hidden_size = 256,
+        projection_layers = 4,
+        num_classes_K = 65336,
         target_loss_weight = 1.0,
         sigreg_loss_weight = 1.0
     )
@@ -381,29 +293,4 @@ if __name__ == '__main__':
     loss.backward()
     opt.step()
 
-    print('SIGReg loss:', loss.item())
-
-    # 2. LeJEPA with EMA instead of SIGReg
-
-    model_ema = create_model()
-
-    learner_ema = LeJEPA(
-        model_ema,
-        image_size = 256,
-        hidden_layer = 'to_latent',
-        projection_hidden_size = 256,
-        projection_layers = 4,
-        num_classes_K = 65336,
-        use_ema = True,
-        moving_average_decay = 0.99
-    )
-
-    opt_ema = torch.optim.Adam(learner_ema.parameters(), lr = 3e-4)
-
-    loss_ema = learner_ema(images)
-    opt_ema.zero_grad()
-    loss_ema.backward()
-    opt_ema.step()
-    learner_ema.update_moving_average()
-
-    print('EMA loss:', loss_ema.item())
+    print('loss:', loss.item())
